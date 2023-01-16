@@ -51,6 +51,9 @@ my %feature_kw = (
     catch     => 'try',
     finally   => 'try',
     defer     => 'defer',
+    class     => 'class',
+    field     => 'class',
+    method    => 'class',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
@@ -144,6 +147,7 @@ __END__
 -chown
 -chr
 -chroot
+-class
 -close
 -closedir
 -cmp
@@ -179,6 +183,7 @@ __END__
 -exp
 -fc
 -fcntl
+-field
 -fileno
 +finally
 -flock
@@ -244,6 +249,7 @@ __END__
 -lt
 +m
 +map
+-method
 -mkdir
 -msgctl
 -msgget

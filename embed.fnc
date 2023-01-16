@@ -3661,6 +3661,10 @@ XEop	|char  *|dup_warnings	|NULLOK char *warnings
 
 Amd	|const char * const|phase_name					\
 				|enum perl_phase
+Cp  |OP *   |class_wrap_method_body		    \
+		|NULLOK OP *o
+Cp  |void   |croak_kw_unless_class		    \
+		|NN const char *kw
 #if ( defined(AF_INET) && defined(HAS_SOCKET) && defined(PF_INET) && \
     defined(SOCK_DGRAM) ) || defined(HAS_SOCKETPAIR)
 pR	|int	|PerlSock_socketpair_cloexec				\

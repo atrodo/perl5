@@ -441,16 +441,20 @@ static struct debug_tokens {
     DEBUG_TOKEN (OPNUM, FUNC1),
     DEBUG_TOKEN (NONE,  HASHBRACK),
     DEBUG_TOKEN (IVAL,  KW_CATCH),
+    DEBUG_TOKEN (IVAL,  KW_CLASS),
     DEBUG_TOKEN (IVAL,  KW_CONTINUE),
     DEBUG_TOKEN (IVAL,  KW_DEFAULT),
     DEBUG_TOKEN (IVAL,  KW_DO),
     DEBUG_TOKEN (IVAL,  KW_ELSE),
     DEBUG_TOKEN (IVAL,  KW_ELSIF),
+    DEBUG_TOKEN (IVAL,  KW_FIELD),
     DEBUG_TOKEN (IVAL,  KW_GIVEN),
     DEBUG_TOKEN (IVAL,  KW_FOR),
     DEBUG_TOKEN (IVAL,  KW_FORMAT),
     DEBUG_TOKEN (IVAL,  KW_IF),
     DEBUG_TOKEN (IVAL,  KW_LOCAL),
+    DEBUG_TOKEN (IVAL,  KW_METHOD_anon),
+    DEBUG_TOKEN (IVAL,  KW_METHOD_named),
     DEBUG_TOKEN (IVAL,  KW_MY),
     DEBUG_TOKEN (IVAL,  KW_PACKAGE),
     DEBUG_TOKEN (IVAL,  KW_REQUIRE),
@@ -2426,8 +2430,8 @@ S_force_strict_version(pTHX_ char *s)
         s = (char *)scan_version(s, ver, 0);
         version = newSVOP(OP_CONST, 0, ver);
     }
-    else if ((*s != ';' && *s != '{' && *s != '}' )
-             && (s = skipspace(s), (*s != ';' && *s != '{' && *s != '}' )))
+    else if ((*s != ';' && *s != ':' && *s != '{' && *s != '}' )
+             && (s = skipspace(s), (*s != ';' && *s != ':' && *s != '{' && *s != '}' )))
     {
         PL_bufptr = s;
         if (errstr)
@@ -5379,7 +5383,10 @@ yyl_sub(pTHX_ char *s, const int key)
     bool have_name, have_proto;
     STRLEN len;
     SV *format_name = NULL;
-    bool is_sigsub = FEATURE_SIGNATURES_IS_ENABLED;
+    bool is_method = (key == KEY_method);
+
+    /* method always implies signatures */
+    bool is_sigsub = is_method || FEATURE_SIGNATURES_IS_ENABLED;
 
     SSize_t off = s-SvPVX(PL_linestr);
     char *d;
@@ -5458,9 +5465,9 @@ yyl_sub(pTHX_ char *s, const int key)
     if (  !(*s == ':' && s[1] != ':')
         && (*s != '{' && *s != '(') && key != KEY_format)
     {
-        assert(key == KEY_sub || key == KEY_AUTOLOAD ||
-               key == KEY_DESTROY || key == KEY_BEGIN ||
-               key == KEY_UNITCHECK || key == KEY_CHECK ||
+        assert(key == KEY_sub || key == KEY_method ||
+               key == KEY_AUTOLOAD || key == KEY_DESTROY ||
+               key == KEY_BEGIN || key == KEY_UNITCHECK || key == KEY_CHECK ||
                key == KEY_INIT || key == KEY_END ||
                key == KEY_my || key == KEY_state ||
                key == KEY_our);
@@ -5476,18 +5483,23 @@ yyl_sub(pTHX_ char *s, const int key)
         PL_lex_stuff = NULL;
         force_next(THING);
     }
+
     if (!have_name) {
         if (PL_curstash)
             sv_setpvs(PL_subname, "__ANON__");
         else
             sv_setpvs(PL_subname, "__ANON__::__ANON__");
-        if (is_sigsub)
+        if (is_method)
+            TOKEN(KW_METHOD_anon);
+        else if (is_sigsub)
             TOKEN(KW_SUB_anon_sig);
         else
             TOKEN(KW_SUB_anon);
     }
     force_ident_maybe_lex('&');
-    if (is_sigsub)
+    if (is_method)
+        TOKEN(KW_METHOD_named);
+    else if (is_sigsub)
         TOKEN(KW_SUB_named_sig);
     else
         TOKEN(KW_SUB_named);
@@ -6027,8 +6039,9 @@ yyl_colon(pTHX_ char *s)
         if (*s != ';'
             && *s != '}'
             && !(PL_expect == XOPERATOR
-                 ? (*s == '=' ||  *s == ')')
-                 : (*s == '{' ||  *s == '(')))
+                   /* if an operator is expected, permit =, //= and ||= or ) to end */
+                 ? (*s == '=' || *s == ')' || *s == '/' || *s == '|')
+                 : (*s == '{' || *s == '(')))
         {
             const char q = ((*s == '\'') ? '"' : '\'');
             /* If here for an expression, and parsed no attrs, back off. */
@@ -7849,6 +7862,16 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
     case KEY_chop:
         UNI(OP_CHOP);
 
+    case KEY_class:
+        Perl_ck_warner_d(aTHX_
+            packWARN(WARN_EXPERIMENTAL__CLASS), "class is experimental");
+
+        s = force_word(s,BAREWORD,FALSE,TRUE);
+        s = skipspace(s);
+        s = force_strict_version(s);
+        PL_expect = XATTRBLOCK;
+        TOKEN(KW_CLASS);
+
     case KEY_continue:
         /* We have to disambiguate the two senses of
           "continue". If the next token is a '{' then
@@ -8001,6 +8024,18 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
 
     case KEY_endgrent:
         FUN0(OP_EGRENT);
+
+    case KEY_field:
+        /* TODO: maybe this should use the same parser/grammar structures as
+         * `my`, but it's also rather messy because of the `our` conflation
+         */
+        Perl_ck_warner_d(aTHX_
+            packWARN(WARN_EXPERIMENTAL__CLASS), "field is experimental");
+
+        croak_kw_unless_class("field");
+
+        PL_parser->in_my = KEY_field;
+        OPERATOR(KW_FIELD);
 
     case KEY_finally:
         Perl_ck_warner_d(aTHX_
@@ -8533,6 +8568,12 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
 
     case KEY_substr:
         LOP(OP_SUBSTR,XTERM);
+
+    case KEY_method:
+        /* For now we just treat 'method' identical to 'sub' plus a warning */
+        Perl_ck_warner_d(aTHX_
+            packWARN(WARN_EXPERIMENTAL__CLASS), "method is experimental");
+        return yyl_sub(aTHX_ s, KEY_method);
 
     case KEY_format:
     case KEY_sub:
@@ -9813,7 +9854,8 @@ S_pending_ident(pTHX)
                 /* PL_no_myglob is constant */
                 GCC_DIAG_IGNORE_STMT(-Wformat-nonliteral);
                 yyerror_pv(Perl_form(aTHX_ PL_no_myglob,
-                            PL_in_my == KEY_my ? "my" : "state",
+                            PL_in_my == KEY_my ? "my" :
+                            PL_in_my == KEY_field ? "field" : "state",
                             *PL_tokenbuf == '&' ? "subroutine" : "variable",
                             PL_tokenbuf),
                             UTF ? SVf_UTF8 : 0);

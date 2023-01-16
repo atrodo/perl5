@@ -541,6 +541,10 @@ Perl_ckwarn_d(pTHX_ U32 w)
         __attribute__pure__;
 #define PERL_ARGS_ASSERT_CKWARN_D
 
+PERL_CALLCONV OP *
+Perl_class_wrap_method_body(pTHX_ OP *o);
+#define PERL_ARGS_ASSERT_CLASS_WRAP_METHOD_BODY
+
 PERL_CALLCONV void
 Perl_clear_defarray(pTHX_ AV *av, bool abandon);
 #define PERL_ARGS_ASSERT_CLEAR_DEFARRAY         \
@@ -616,6 +620,11 @@ Perl_croak_caller(const char *pat, ...)
         __attribute__visibility__("hidden")
         __attribute__format__null_ok__(__printf__,1,2);
 #define PERL_ARGS_ASSERT_CROAK_CALLER
+
+PERL_CALLCONV void
+Perl_croak_kw_unless_class(pTHX_ const char *kw);
+#define PERL_ARGS_ASSERT_CROAK_KW_UNLESS_CLASS  \
+        assert(kw)
 
 PERL_STATIC_NO_RET void
 Perl_croak_memory_wrap(void)
