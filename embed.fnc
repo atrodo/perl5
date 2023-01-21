@@ -740,6 +740,7 @@ Aodxp	|void	|blockhook_register					\
 p	|void	|boot_core_builtin
 : Used in perl.c
 p	|void	|boot_core_UNIVERSAL
+p	|void	|boot_core_CLASS
 : Used in perl.c
 p	|void	|boot_core_PerlIO
 Cp	|void	|call_list	|I32 oldscope				\
@@ -3663,6 +3664,8 @@ Amd	|const char * const|phase_name					\
 				|enum perl_phase
 Cp  |OP *   |class_wrap_method_body		    \
 		|NULLOK OP *o
+Cp  |OP *   |class_op_accessor_get		    \
+		|NN SV *name
 Cp  |void   |croak_kw_unless_class		    \
 		|NN const char *kw
 #if ( defined(AF_INET) && defined(HAS_SOCKET) && defined(PF_INET) && \
