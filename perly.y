@@ -383,7 +383,8 @@ barestmt:	PLUGSTMT
                           init_named_cv(PL_compcv, $subname);
 			  if($sigsub_or_method_named == KW_METHOD_named) {
 			      croak_kw_unless_class("method");
-			      /*class_prepare_method_parse(PL_compcv);*/
+			      class_setup_method(PL_compcv);
+                              intro_my();
 			  }
 			  parser->in_my = 0;
 			  parser->in_my_stash = NULL;
@@ -421,7 +422,7 @@ barestmt:	PLUGSTMT
 			  if ($version)
 			      package_version($version);
 			  $$ = NULL;
-			  /*class_setup_stash(PL_curstash);*/
+			  class_setup(PL_curstash);
 			}
 	|	KW_USE_or_NO startsub
 			{ CvSPECIAL_on(PL_compcv); /* It's a BEGIN {} */ }
@@ -581,6 +582,7 @@ barestmt:	PLUGSTMT
 			  if ($version) {
 			      package_version($version);
 			  }
+			  class_setup(PL_curstash);
                           /*
 			  class_setup_stash(PL_curstash);
 			  if ($subattrlist) {

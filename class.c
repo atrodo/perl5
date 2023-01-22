@@ -31,6 +31,24 @@ Perl_croak_kw_unless_class(pTHX_ const char *kw)
         croak("Cannot '' outside of a 'class'");
 }
 
+void
+Perl_class_setup(pTHX_ HV *stash)
+{
+}
+
+void
+Perl_class_setup_method(pTHX_ CV *cv)
+{
+    assert(PL_comppad_name_fill == 0);
+
+    PADOFFSET padix = allocmy("$self", 5, 0);
+
+   assert(padix == PADIX_SELF);
+   warn("p: %ld\n", padix);
+
+   PERL_UNUSED_VAR(padix);
+}
+
 OP *
 Perl_class_wrap_method_body(pTHX_ OP *o)
 {
@@ -181,10 +199,6 @@ PP(pp_methstart)
         croak("Cannot invoke method on a non-instance");
 
     /* TODO: When we implement inheritence we'll have to do something fancier here */
-    if(CvSTASH(curcv) != SvSTASH(rv) &&
-        !sv_derived_from_hv(self, CvSTASH(curcv)))
-        croak("Cannot invoke a method of %" HvNAMEf_QUOTEDPREFIX " on an instance of %" HvNAMEf_QUOTEDPREFIX,
-            HvNAMEfARG(CvSTASH(curcv)), HvNAMEfARG(SvSTASH(rv)));
 
     save_clearsv(&PAD_SVl(PADIX_SELF));
     sv_setsv(PAD_SVl(PADIX_SELF), self);

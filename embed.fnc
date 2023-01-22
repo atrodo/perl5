@@ -3662,6 +3662,10 @@ XEop	|char  *|dup_warnings	|NULLOK char *warnings
 
 Amd	|const char * const|phase_name					\
 				|enum perl_phase
+Cp  |void   |class_setup			    \
+		|NN HV *stash
+Cp  |void   |class_setup_method			    \
+		|NN CV *cv
 Cp  |OP *   |class_wrap_method_body		    \
 		|NULLOK OP *o
 Cp  |OP *   |class_op_accessor_get		    \
