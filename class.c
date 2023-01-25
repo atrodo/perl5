@@ -14,6 +14,7 @@
 #include "EXTERN.h"
 #define PERL_IN_CLASS_C
 #include "perl.h"
+#include "keywords.h"
 
 #include "XSUB.h"
 
@@ -34,6 +35,12 @@ Perl_croak_kw_unless_class(pTHX_ const char *kw)
 void
 Perl_class_setup(pTHX_ HV *stash)
 {
+    assert(PL_comppad_name_fill == 0);
+
+    U16 old_in_my = PL_parser->in_my;
+    PL_parser->in_my = KEY_our;
+    PADOFFSET padix = allocmy("%HAS", 4, 0);
+    PL_parser->in_my = old_in_my;
 }
 
 void
