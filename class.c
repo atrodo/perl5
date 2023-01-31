@@ -75,6 +75,27 @@ Perl_class_wrap_method_body(pTHX_ OP *o)
 }
 
 OP *
+Perl_class_op_field(pTHX_ SV *name)
+{
+    OP *o;
+    OP *name_op = newSVOP(OP_CONST, 0, SvREFCNT_inc(name));
+    warn("ss: %s\n", SvPV_nolen(name));
+
+    PADOFFSET tmp = pad_findmy_pvn("$self", 5, 0);
+    warn("pi: %ld\n", tmp);
+
+    o = newOP(OP_PADSV, 0);
+    o->op_targ = tmp;
+
+    o = doref(newHVREF(o), OP_RV2HV, TRUE);
+
+    o = newBINOP(OP_HELEM, 0, o, name_op);
+
+    return o;
+}
+
+
+OP *
 Perl_class_op_accessor_get(pTHX_ SV *name)
 {
     GV *gv;
@@ -211,6 +232,90 @@ PP(pp_methstart)
     sv_setsv(PAD_SVl(PADIX_SELF), self);
 
     return NORMAL;
+}
+
+PP(pp_fieldsv)
+{
+    dSP;
+
+    EXTEND(SP, 1);
+    HE* he;
+    SV **svp;
+    const U32 lval = PL_op->op_flags & OPf_MOD || LVRET;
+    const U32 defer = PL_op->op_private & OPpLVAL_DEFER;
+    const bool localizing = PL_op->op_private & OPpLVAL_INTRO;
+    bool preeminent = TRUE;
+
+    SV *sv;
+    SV *self = PAD_SVl(PADIX_SELF);
+
+    if (!self || !SvROK(self)) { warn("About to die\n"); }
+    HV *self_hv = (HV *)SvRV(self);
+    HV *hv = self_hv;
+
+    SV * const field = cSVOP_sv;
+
+    if (localizing) {
+        MAGIC *mg;
+        HV *stash;
+
+        /* If we can determine whether the element exists,
+         * Try to preserve the existenceness of a tied hash
+         * element by using EXISTS and DELETE if possible.
+         * Fallback to FETCH and STORE otherwise. */
+        if (SvCANEXISTDELETE(hv))
+            preeminent = hv_exists_ent(hv, field, 0);
+    }
+
+    he = hv_fetch_ent(hv, field, lval && !defer, 0);
+    svp = he ? &HeVAL(he) : NULL;
+    if (lval) {
+        if (!svp || !*svp || *svp == &PL_sv_undef) {
+            SV* lv;
+            SV* key2;
+            if (!defer) {
+                DIE(aTHX_ PL_no_helem_sv, SVfARG(field));
+            }
+            lv = newSV_type_mortal(SVt_PVLV);
+            LvTYPE(lv) = 'y';
+            sv_magic(lv, key2 = newSVsv(field), PERL_MAGIC_defelem, NULL, 0);
+            SvREFCNT_dec_NN(key2);      /* sv_magic() increments refcount */
+            LvTARG(lv) = SvREFCNT_inc_simple_NN(hv);
+            LvTARGLEN(lv) = 1;
+            PUSHs(lv);
+            RETURN;
+        }
+        if (localizing) {
+            if (HvNAME_get(hv) && isGV_or_RVCV(*svp))
+                save_gp(MUTABLE_GV(*svp), !(PL_op->op_flags & OPf_SPECIAL));
+            else if (preeminent)
+                save_helem_flags(hv, field, svp,
+                     (PL_op->op_flags & OPf_SPECIAL) ? 0 : SAVEf_SETMAGIC);
+            else
+                SAVEHDELETE(hv, field);
+        }
+        else if (PL_op->op_private & OPpDEREF) {
+            PUSHs(vivify_ref(*svp, PL_op->op_private & OPpDEREF));
+            RETURN;
+        }
+    }
+    sv = (svp && *svp ? *svp : &PL_sv_undef);
+    /* Originally this did a conditional C<sv = sv_mortalcopy(sv)>; this
+     * was to make C<local $tied{foo} = $tied{foo}> possible.
+     * However, it seems no longer to be needed for that purpose, and
+     * introduced a new bug: stuff like C<while ($hash{taintedval} =~ /.../g>
+     * would loop endlessly since the pos magic is getting set on the
+     * mortal copy and lost. However, the copy has the effect of
+     * triggering the get magic, and losing it altogether made things like
+     * c<$tied{foo};> in void context no longer do get magic, which some
+     * code relied on. Also, delayed triggering of magic on @+ and friends
+     * meant the original regex may be out of scope by now. So as a
+     * compromise, do the get magic here. (The MGf_GSKIP flag will stop it
+     * being called too many times). */
+    if (!lval && SvRMAGICAL(hv) && SvGMAGICAL(sv))
+        mg_get(sv);
+    PUSHs(sv);
+    RETURN;
 }
 
 XS(XS_CLASS_new);

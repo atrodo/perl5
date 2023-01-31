@@ -3272,6 +3272,7 @@ Perl_op_lvalue_flags(pTHX_ OP *o, I32 type, U32 flags)
           && type == OP_LEAVESUBLV)
             o->op_private |= OPpMAYBE_LVSUB;
         /* FALLTHROUGH */
+    case OP_FIELDSV:
     case OP_PADSV:
         PL_modcount++;
         if (!type) /* local() */
@@ -11630,6 +11631,22 @@ Perl_oopsHV(pTHX_ OP *o)
     default:
         Perl_ck_warner_d(aTHX_ packWARN(WARN_INTERNAL), "oops: oopsHV");
         break;
+    }
+    return o;
+}
+
+OP *
+Perl_maybeFIELDop(pTHX_ OP *o)
+{
+    if (o->op_type == OP_PADSV || o->op_type == OP_PADANY)
+    {
+    PADOFFSET tmp = o->op_targ;
+    if (PAD_COMPNAME_FLAGS_isFIELD(tmp)) {
+        warn("### Pending identifier '%s', %d %d\n", PAD_COMPNAME_PV(tmp)+1, PAD_COMPNAME_FLAGS(tmp), tmp);
+        PADNAME *pn = PAD_COMPNAME_SV(tmp);
+        SV *name = newSVpvn_flags( PadnamePV(pn)+1,PadnameLEN(pn)-1, (PadnameUTF8(pn)) ? SVf_UTF8 : 0 );
+        o = newSVOP(OP_FIELDSV, 0, name);
+    }
     }
     return o;
 }

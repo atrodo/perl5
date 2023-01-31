@@ -1351,7 +1351,7 @@ term[product]	:	termbinop
 	|	PERLY_PAREN_OPEN PERLY_PAREN_CLOSE
 			{ $$ = sawparens(newNULLLIST()); }
 	|	scalar	%prec PERLY_PAREN_OPEN
-			{ $$ = $scalar; }
+			{ $$ = maybeFIELDop($scalar); }
 	|	star	%prec PERLY_PAREN_OPEN
 			{ $$ = $star; }
 	|	hsh 	%prec PERLY_PAREN_OPEN

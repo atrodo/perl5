@@ -9899,13 +9899,12 @@ S_pending_ident(pTHX)
                                  0);
 
         if (tmp != NOT_IN_PAD) {
+            /*
         if (PAD_COMPNAME_FLAGS_isFIELD(tmp)) {
-        SV *sym = newSVpvn_flags(PL_tokenbuf+1, tokenbuf_len > 0 ? tokenbuf_len : 0, (UTF ? SV_CATUTF8 : SV_CATBYTES ));
-        OP *o = class_op_accessor_get(sym);
-            o = doref(newBINOP(OP_AELEM, 0, newGVOP(OP_GV, 0, PL_defgv), newSVOP(OP_CONST, 0, newSViv(0))), OP_RV2HV, TRUE);
             pl_yylval.opval = o;
             return PRIVATEREF;
         }
+            */
             /* might be an "our" variable" */
             if (PAD_COMPNAME_FLAGS_isOUR(tmp)) {
                 /* build ops for a bareword */

@@ -132,6 +132,7 @@ typedef enum {
 #define padadd_NO_DUP_CHECK	0x04	   /* skip warning on dups. */
 #define padadd_STALEOK		0x08	   /* allow stale lexical in active
                                             * sub, but only one level up */
+#define padadd_FIELD            0x10       /* set PADNAMEt_FIELD */
 
 /* ASSERT_CURPAD_LEGAL and ASSERT_CURPAD_ACTIVE respectively determine
  * whether PL_comppad and PL_curpad are consistent and whether they have
@@ -332,6 +333,7 @@ Restore the old pad saved into the local variable C<opad> by C<PAD_SAVE_LOCAL()>
 #define PadnameOUTER(pn)	(PadnameFLAGS(pn) & PADNAMEf_OUTER)
 #define PadnameIsSTATE(pn)	(PadnameFLAGS(pn) & PADNAMEf_STATE)
 #define PadnameLVALUE(pn)	(PadnameFLAGS(pn) & PADNAMEf_LVALUE)
+#define PadnameIsFIELD(pn)  (PadnameFLAGS(pn) & PADNAMEf_FIELD)
 
 #define PadnameLVALUE_on(pn)	(PadnameFLAGS(pn) |= PADNAMEf_LVALUE)
 #define PadnameIsSTATE_on(pn)	(PadnameFLAGS(pn) |= PADNAMEf_STATE)
@@ -341,6 +343,7 @@ Restore the old pad saved into the local variable C<opad> by C<PAD_SAVE_LOCAL()>
 #define PADNAMEf_LVALUE	0x04	/* used as lvalue */
 #define PADNAMEf_TYPED	0x08	/* for B; unused by core */
 #define PADNAMEf_OUR	0x10	/* for B; unused by core */
+#define PADNAMEf_FIELD  0x20    /* field var */
 
 /* backward compatibility */
 #ifndef PERL_CORE
@@ -459,6 +462,7 @@ ling pad (lvalue) to C<gen>.
 #define PAD_COMPNAME_SV(po)	(PadnamelistARRAY(PL_comppad_name)[(po)])
 #define PAD_COMPNAME_FLAGS(po)	PadnameFLAGS(PAD_COMPNAME(po))
 #define PAD_COMPNAME_FLAGS_isOUR(po) PadnameIsOUR(PAD_COMPNAME_SV(po))
+#define PAD_COMPNAME_FLAGS_isFIELD(po) PadnameIsFIELD(PAD_COMPNAME_SV(po))
 #define PAD_COMPNAME_PV(po)	PadnamePV(PAD_COMPNAME(po))
 
 #define PAD_COMPNAME_TYPE(po)	PadnameTYPE(PAD_COMPNAME(po))
