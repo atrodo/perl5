@@ -11643,9 +11643,12 @@ Perl_maybeFIELDop(pTHX_ OP *o)
     PADOFFSET tmp = o->op_targ;
     if (PAD_COMPNAME_FLAGS_isFIELD(tmp)) {
         warn("### Pending identifier '%s', %d %d\n", PAD_COMPNAME_PV(tmp)+1, PAD_COMPNAME_FLAGS(tmp), tmp);
+        PADOFFSET self_po = pad_findmy_pvn("$self", 5, 0);
+
         PADNAME *pn = PAD_COMPNAME_SV(tmp);
         SV *name = newSVpvn_flags( PadnamePV(pn)+1,PadnameLEN(pn)-1, (PadnameUTF8(pn)) ? SVf_UTF8 : 0 );
         o = newSVOP(OP_FIELDSV, 0, name);
+        o->op_targ = self_po;
     }
     }
     return o;

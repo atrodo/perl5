@@ -108,11 +108,9 @@ Perl_class_op_accessor_get(pTHX_ SV *name)
 I32 save_ix = block_start(TRUE);
 
     //OP * body = newUNOP_AUX(OP_MULTIDEREF, 0, NULL, arg_buf);
-    warn("l: %d\n", __LINE__);
     //gv = gv_fetchsv(name, GV_NOADD_NOINIT, SVt_PVCV);
     //gv = gv_fetchpvs("_", GV_NOADD_NOINIT, SVt_PV);
     OP *name_op = newSVOP(OP_CONST, 0, SvREFCNT_inc(name));
-    warn("l: %d\n", __LINE__);
 
     SV *fname = newSVpvn(HvNAME(PL_curstash), HvNAMELEN(PL_curstash));
     sv_catpv(fname, "::");
@@ -127,7 +125,6 @@ I32 save_ix = block_start(TRUE);
     warn("l: %d\n", isGV(name_gv));
     warn("s: %s\n", HvNAME(PL_curstash));
     warn("s: %s\n", SvPV_nolen(fname));
-    warn("l: %d\n", __LINE__);
 
     SV *l = newSV(0);
     gv_fullname3(l, name_gv, NULL);
@@ -136,9 +133,7 @@ I32 save_ix = block_start(TRUE);
     init_named_cv(PL_compcv, name_op);
     PL_parser->in_my = 0;
     PL_parser->in_my_stash = NULL;
-    warn("l: %d\n", __LINE__);
 
-    warn("l: %d\n", __LINE__);
     /*
     o = newUNOP(OP_RV2AV, OPf_REF,
         newGVOP(OP_GV, 0, PL_defgv));
@@ -146,15 +141,11 @@ I32 save_ix = block_start(TRUE);
 
     o = doref(newAVREF(newGVOP(OP_GV, 0, PL_defgv)),OP_RV2AV, TRUE);
 
-    warn("l: %d\n", __LINE__);
     //o = newBINOP(OP_AELEM, 0, o, newSVOP(OP_CONST, 0, newSViv(0)));
     o = doref(newBINOP(OP_AELEM, 0, o, newSVOP(OP_CONST, 0, newSViv(0))), OP_RV2HV, TRUE);
 
-    warn("l: %d\n", __LINE__);
     o = newUNOP(OP_RV2HV, OPf_REF, o);
 
-    warn("l: %d\n", __LINE__);
-    warn("s: %s\n", SvPV_nolen(name));
     //o = newBINOP(OP_HELEM, 0, o, newSVOP(OP_CONST, 0, name));
 
     /*
@@ -166,24 +157,15 @@ I32 save_ix = block_start(TRUE);
 
     SvREFCNT_inc(name);
     o = newBINOP(OP_HELEM, 0, o, name_op);
-    warn("l: %d\n", __LINE__);
     //sigops = op_prepend_elem(OP_LINESEQ, check, sigops);
 
     o = newSTATEOP(0, NULL, o);
-    warn("l: %d\n", __LINE__);
 
 o = block_end(save_ix, o);
     SAVEFREESV(PL_compcv);
-    warn("l: %d\n", __LINE__);
 
-    warn("l: %d\n", __LINE__);
     SvREFCNT_inc_simple_void(PL_compcv);
-    warn("l: %d\n", __LINE__);
-    warn("s: %s\n", SvPV_nolen(name));
     CV *cv = newATTRSUB_x(startsub, (OP *)name_gv, NULL, NULL, o, TRUE);
-    warn("l: %d\n", __LINE__);
-    warn("s: %s\n", SvPV_nolen(name));
-    warn("s: %s\n", HvNAME(PL_curstash));
     //warn("s: %s\n", SvPV_nolen(GvSV(CvGV(cv))));
     /*
     intro_my();
@@ -247,7 +229,7 @@ PP(pp_fieldsv)
     bool preeminent = TRUE;
 
     SV *sv;
-    SV *self = PAD_SVl(PADIX_SELF);
+    SV *self = PAD_SVl(PL_op->op_targ);
 
     if (!self || !SvROK(self)) { warn("About to die\n"); }
     HV *self_hv = (HV *)SvRV(self);
