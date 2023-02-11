@@ -126,87 +126,44 @@ Perl_class_op_accessor_get(pTHX_ SV *name)
     GV *gv;
     OP *o;
     I32 startsub = start_subparse(FALSE, 0);
-/*
-    STRLEN namlen = 0;
-    const char * const name = o ? SvPV_const(cSVOPo->op_sv, namlen) : NULL;
-*/
-I32 save_ix = block_start(TRUE);
+    I32 save_ix = block_start(TRUE);
 
-    //OP * body = newUNOP_AUX(OP_MULTIDEREF, 0, NULL, arg_buf);
-    //gv = gv_fetchsv(name, GV_NOADD_NOINIT, SVt_PVCV);
-    //gv = gv_fetchpvs("_", GV_NOADD_NOINIT, SVt_PV);
     OP *name_op = newSVOP(OP_CONST, 0, SvREFCNT_inc(name));
 
     SV *fname = newSVpvn(HvNAME(PL_curstash), HvNAMELEN(PL_curstash));
     sv_catpv(fname, "::");
     sv_catsv(fname, name);
-    STRLEN name_len;
-    const char *name_cc = SvPV_const(name, name_len);
-    //SV **name_gv = hv_fetch(PL_curstash, name_cc, name_len, TRUE);
+
     GV *name_gv = gv_fetchsv(fname, GV_ADDMULTI | GV_NOINIT, SVt_PVCV);
-    gv_init_pvn(name_gv, PL_curstash, name_cc, name_len, 0);
-
-    warn("l: %d\n", (int)name_gv);
-    warn("l: %d\n", isGV(name_gv));
-    warn("s: %s\n", HvNAME(PL_curstash));
-    warn("s: %s\n", SvPV_nolen(fname));
-
-    SV *l = newSV(0);
-    gv_fullname3(l, name_gv, NULL);
-    warn("s: %s\n", SvPV_nolen(name));
+    gv_init_sv(name_gv, PL_curstash, name, 0);
 
     init_named_cv(PL_compcv, name_op);
     PL_parser->in_my = 0;
     PL_parser->in_my_stash = NULL;
 
-    /*
-    o = newUNOP(OP_RV2AV, OPf_REF,
-        newGVOP(OP_GV, 0, PL_defgv));
-        */
+    class_setup_method(PL_compcv);
 
-    o = doref(newAVREF(newGVOP(OP_GV, 0, PL_defgv)),OP_RV2AV, TRUE);
-
-    //o = newBINOP(OP_AELEM, 0, o, newSVOP(OP_CONST, 0, newSViv(0)));
-    o = doref(newBINOP(OP_AELEM, 0, o, newSVOP(OP_CONST, 0, newSViv(0))), OP_RV2HV, TRUE);
-
-    o = newUNOP(OP_RV2HV, OPf_REF, o);
-
-    //o = newBINOP(OP_HELEM, 0, o, newSVOP(OP_CONST, 0, name));
-
-    /*
-    PADNAME *pn = PadnamelistARRAY(PL_comppad_name)[name_op->op_targ];
-    warn("l: %d\n", __LINE__);
-    SV *name = newSVpvn(PadnamePV(pn), PadnameLEN(pn));
-    warn("l: %d\n", __LINE__);
-    */
-
-    SvREFCNT_inc(name);
-    o = newBINOP(OP_HELEM, 0, o, name_op);
-    //sigops = op_prepend_elem(OP_LINESEQ, check, sigops);
+    // pad_findmy_pvn was returning -1, so right now we know self_po is 1
+    PADOFFSET self_po = 1;
+    o = newSVOP(OP_FIELDSV, 0, name);
+    o->op_targ = self_po;
 
     o = newSTATEOP(0, NULL, o);
 
-o = block_end(save_ix, o);
+    o = block_end(save_ix, o);
+    o = class_wrap_method_body(o);
     SAVEFREESV(PL_compcv);
 
     SvREFCNT_inc_simple_void(PL_compcv);
     CV *cv = newATTRSUB_x(startsub, (OP *)name_gv, NULL, NULL, o, TRUE);
-    //warn("s: %s\n", SvPV_nolen(GvSV(CvGV(cv))));
-    /*
-    intro_my();
-    warn("l: %d\n", __LINE__);
-    PL_parser->parsed_sub = 1;
-    warn("l: %d\n", __LINE__);
-    */
-{
-STRLEN namelen;
-      const char *n = SvPV_const(name, namelen);
-      U32 hash;
-      PERL_HASH(hash, n, namelen);
-      //ASSUME(!CvNAME_HEK(o));
- 
-      CvNAME_HEK_set(cv, share_hek(n, namelen, hash));
-}
+    {
+        STRLEN namelen;
+        const char *n = SvPV_const(name, namelen);
+        U32 hash;
+        PERL_HASH(hash, n, namelen);
+
+        CvNAME_HEK_set(cv, share_hek(n, namelen, hash));
+    }
 
     return NULL;
 }
