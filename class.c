@@ -41,6 +41,13 @@ Perl_class_setup(pTHX_ HV *stash)
     PL_parser->in_my = KEY_our;
     PADOFFSET padix = allocmy("%HAS", 4, 0);
     PL_parser->in_my = old_in_my;
+
+    SV *isa_sv = newSVpvn(HvNAME(PL_curstash), HvNAMELEN(PL_curstash));
+    sv_catpv(isa_sv, "::ISA");
+
+    GV *const isa_gv = gv_fetchsv(isa_sv, GV_ADD | GV_ADDMULTI, SVt_PVAV);
+    AV *const isa = GvAVn(isa_gv);
+    av_push(isa, newSVpvn("CLASS", 5));
 }
 
 void
