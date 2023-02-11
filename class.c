@@ -56,6 +56,24 @@ Perl_class_setup_method(pTHX_ CV *cv)
    PERL_UNUSED_VAR(padix);
 }
 
+void
+Perl_class_extends(pTHX_ OP *parent_op)
+{
+    SV *parent;
+    SV *isa_sv;
+
+    if (parent_op->op_type != OP_CONST)
+        Perl_croak(aTHX_ "Module name must be constant");
+
+    parent = newSVsv(cSVOPx(parent_op)->op_sv);
+    isa_sv = newSVpvn(HvNAME(PL_curstash), HvNAMELEN(PL_curstash));
+    sv_catpv(isa_sv, "::ISA");
+
+    GV *const isa_gv = gv_fetchsv(isa_sv, GV_ADD | GV_ADDMULTI, SVt_PVAV);
+    AV *const isa = GvAVn(isa_gv);
+    av_push(isa, parent);
+}
+
 OP *
 Perl_class_wrap_method_body(pTHX_ OP *o)
 {

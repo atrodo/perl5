@@ -64,7 +64,7 @@
 %token <ival> PERLY_STAR
 
 /* Tokens emitted by toke.c on simple keywords */
-%token <ival> KW_FORMAT KW_PACKAGE KW_CLASS
+%token <ival> KW_FORMAT KW_PACKAGE KW_CLASS KW_EXTENDS
 %token <ival> KW_LOCAL KW_MY KW_FIELD
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
@@ -103,6 +103,7 @@
 %type <opval> condition
 %type <opval> catch_paren
 %type <opval> empty
+%type <opval> extends extendsseq
 %type <opval> sliceme kvslice gelem
 %type <opval> listexpr nexpr texpr iexpr mexpr mnexpr
 %type <opval> optlistexpr optexpr optrepl indirob listop methodname
@@ -583,13 +584,10 @@ barestmt:	PLUGSTMT
 			      package_version($version);
 			  }
 			  class_setup(PL_curstash);
-                          /*
-			  class_setup_stash(PL_curstash);
-			  if ($subattrlist) {
-			      class_apply_attributes(PL_curstash, $subattrlist);
-			  }
-                          */
 			}
+                extendsseq
+                        {
+                        }
 		stmtseq PERLY_BRACE_CLOSE
 			{
 			  /* a block is a loop that happens once */
@@ -1513,6 +1511,28 @@ myterm	:	PERLY_PAREN_OPEN expr PERLY_PAREN_CLOSE
 
 /* TODO jgentle */
 /* "field" declarations */
+extends
+	:	KW_EXTENDS startsub
+			{ CvSPECIAL_on(PL_compcv); /* It's a BEGIN {} */ }
+		BAREWORD[version] BAREWORD[module] optlistexpr PERLY_SEMICOLON
+		    /* version and package appear in reverse order for the same reason as
+		     * KW_PACKAGE; see comment above */
+			{
+			  SvREFCNT_inc_simple_void(PL_compcv);
+                          OP *pack = newSVOP(OP_CONST, 0, newSVsv(cSVOPx($module)->op_sv));
+			  utilize(1, $startsub, $version, $module, $optlistexpr);
+                          class_extends(pack);
+			  parser->parsed_sub = 1;
+			  $$ = NULL;
+			}
+        ;
+extendsseq
+	:	empty
+	|	extendsseq[list] extends
+                        {
+			  $$ = NULL;
+                        }
+	;
 fieldvar:	scalar	%prec PERLY_PAREN_OPEN
 	;
 

@@ -3666,6 +3666,7 @@ pR	|OP *	|maybeFIELDop	|NN OP *o
 Cp	|void	|class_setup	|NN HV *stash
 Cp	|void	|class_setup_method					\
 				|NN CV *cv
+Cp	|void	|class_extends	|NN OP *parent_op
 Cp	|OP *	|class_wrap_method_body 				\
 				|NULLOK OP *o
 Cp	|OP *	|class_op_field |NN SV *name

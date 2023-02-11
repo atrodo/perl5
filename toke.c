@@ -7872,6 +7872,13 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         PL_expect = XATTRBLOCK;
         TOKEN(KW_CLASS);
 
+    case KEY_extends:
+        s = force_word(s,BAREWORD,FALSE,TRUE);
+        s = skipspace(s);
+        s = force_strict_version(s);
+        PL_expect = XTERM;
+        PREBLOCK(KW_EXTENDS);
+
     case KEY_continue:
         /* We have to disambiguate the two senses of
           "continue". If the next token is a '{' then

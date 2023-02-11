@@ -54,6 +54,7 @@ my %feature_kw = (
     class     => 'class',
     field     => 'class',
     method    => 'class',
+    extends   => 'class',
 );
 
 my %pos = map { ($_ => 1) } @{$by_strength{'+'}};
@@ -181,6 +182,7 @@ __END__
 +exists
 -exit
 -exp
+-extends
 -fc
 -fcntl
 -field
