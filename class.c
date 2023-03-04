@@ -119,6 +119,49 @@ Perl_class_op_field(pTHX_ SV *name)
     return o;
 }
 
+OP *
+Perl_class_op_define_field(pTHX_ OP *name_op, OP *attrs)
+{
+    PADNAME *pn = PadnamelistARRAY(PL_comppad_name)[name_op->op_targ];
+    SV *name = newSVpvn(PadnamePV(pn)+1, PadnameLEN(pn)-1);
+
+    ENTER;
+    SAVEVPTR(PL_curcop);
+    lex_start(NULL, NULL, LEX_START_SAME_FILTER);
+    I32 floor = start_subparse(FALSE, 0);
+
+    OP *pack = newSVOP(OP_CONST, 0, newSVpvs("CLASS"));
+    OP *modname = newSVOP(OP_CONST, 0, newSVpvs("CLASS.pm"));
+    SV *meth = newSVpvs_share("_DEFINE_FIELD");
+    SV *pkg = newSVhek(HvNAME_HEK(PL_curstash));
+    SV *new_name = newSVpvs("");
+
+    OP *arg = newSVOP(OP_CONST, 0, pkg);
+    arg = op_append_elem(OP_LIST, arg, newSVOP(OP_CONST, 1, newSVsv(name)));
+    arg = op_append_elem(OP_LIST, arg, newSVOP(OP_CONST, 1, newRV(new_name)));
+
+    OP *imop = op_convert_list(OP_ENTERSUB, OPf_STACKED,
+		   op_append_elem(OP_LIST,
+			       arg,
+			       newMETHOP_named(OP_METHOD_NAMED, 0, meth)
+		   ));
+
+    newATTRSUB(floor,
+        newSVOP(OP_CONST, 0, newSVpvs_share("BEGIN")),
+        NULL,
+        NULL,
+        op_append_elem(OP_LINESEQ,
+            op_append_elem(OP_LINESEQ,
+                newSTATEOP(0, NULL, newUNOP(OP_REQUIRE, 0, modname)),
+                newSTATEOP(0, NULL, NULL)),
+            newSTATEOP(0, NULL, imop) ));
+
+    LEAVE;
+    warn("de: %s\n", SvPV_nolen(new_name));
+    warn("de: %d\n", __LINE__);
+
+    return NULL;
+}
 
 OP *
 Perl_class_op_accessor_get(pTHX_ SV *name)

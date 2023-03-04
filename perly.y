@@ -1547,12 +1547,7 @@ optfieldattrlist:
 fielddecl
 	:	KW_FIELD fieldvar optfieldattrlist
 			{
-                          PADNAME *pn = PadnamelistARRAY(PL_comppad_name)[$fieldvar->op_targ];
-                          SV *name = newSVpvn(PadnamePV(pn)+1, PadnameLEN(pn)-1);
-
-                          OP *body = class_op_accessor_get(name);
-
-			  $$ = NULL;
+                          $$ = class_op_define_field($fieldvar,$optfieldattrlist);
 			  intro_my();
 			  parser->parsed_sub = 1;
 			}
