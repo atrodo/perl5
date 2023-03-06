@@ -3669,6 +3669,10 @@ Cp	|void	|class_setup_method					\
 Cp	|void	|class_extends	|NN OP *parent_op
 Cp	|OP *	|class_wrap_method_body 				\
 				|NULLOK OP *o
+Cp	|OP *	|class_op_define_field					\
+				|NN OP *name_op 			\
+				|NULLOK OP *assign			\
+				|NN OP *attrs
 Cp	|OP *	|class_op_field |NN SV *name
 Cp	|OP *	|class_op_accessor_get					\
 				|NN SV *name

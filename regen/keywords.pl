@@ -53,6 +53,7 @@ my %feature_kw = (
     defer     => 'defer',
     class     => 'class',
     field     => 'class',
+    member    => 'class',
     method    => 'class',
     extends   => 'class',
 );
@@ -251,6 +252,7 @@ __END__
 -lt
 +m
 +map
+-member
 -method
 -mkdir
 -msgctl

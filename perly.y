@@ -65,7 +65,7 @@
 
 /* Tokens emitted by toke.c on simple keywords */
 %token <ival> KW_FORMAT KW_PACKAGE KW_CLASS KW_EXTENDS
-%token <ival> KW_LOCAL KW_MY KW_FIELD
+%token <ival> KW_LOCAL KW_MY KW_FIELD KW_MEMBER
 %token <ival> KW_IF KW_ELSE KW_ELSIF KW_UNLESS
 %token <ival> KW_FOR KW_UNTIL KW_WHILE KW_CONTINUE
 %token <ival> KW_GIVEN KW_WHEN KW_DEFAULT
@@ -1547,9 +1547,10 @@ optfieldattrlist:
 fielddecl
 	:	KW_FIELD fieldvar optfieldattrlist
 			{
-                          $$ = class_op_define_field($fieldvar,$optfieldattrlist);
+                          $$ = class_op_define_field($fieldvar,NULL,$optfieldattrlist);
 			  intro_my();
 			  parser->parsed_sub = 1;
+                          // jgentle: Something is wrong here, having a sub or method after this results in weird AST
 			}
 	|	KW_FIELD fieldvar optfieldattrlist ASSIGNOP
 			{
@@ -1566,6 +1567,11 @@ fielddecl
 			  LEAVE;
 			  //class_set_field_defop((PADNAME *)$fieldvar, $ASSIGNOP, $term);
 			  $$ = newOP(OP_NULL, 0);
+			}
+        |	KW_MEMBER fieldvar
+			{
+                          intro_my();
+                          $$ = NULL;
 			}
 	;
 

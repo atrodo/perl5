@@ -8044,6 +8044,18 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         PL_parser->in_my = KEY_field;
         OPERATOR(KW_FIELD);
 
+    case KEY_member:
+        /* TODO: maybe this should use the same parser/grammar structures as
+         * `my`, but it's also rather messy because of the `our` conflation
+         */
+        Perl_ck_warner_d(aTHX_
+            packWARN(WARN_EXPERIMENTAL__CLASS), "member is experimental");
+
+        croak_kw_unless_class("member");
+
+        PL_parser->in_my = KEY_member;
+        OPERATOR(KW_MEMBER);
+
     case KEY_finally:
         Perl_ck_warner_d(aTHX_
             packWARN(WARN_EXPERIMENTAL__TRY), "try/catch/finally is experimental");
@@ -9862,7 +9874,8 @@ S_pending_ident(pTHX)
                 GCC_DIAG_IGNORE_STMT(-Wformat-nonliteral);
                 yyerror_pv(Perl_form(aTHX_ PL_no_myglob,
                             PL_in_my == KEY_my ? "my" :
-                            PL_in_my == KEY_field ? "field" : "state",
+                            PL_in_my == KEY_field ? "field" :
+                            PL_in_my == KEY_member ? "member" : "state",
                             *PL_tokenbuf == '&' ? "subroutine" : "variable",
                             PL_tokenbuf),
                             UTF ? SVf_UTF8 : 0);

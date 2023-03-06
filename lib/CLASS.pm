@@ -11,16 +11,39 @@ sub import {
 
 sub _DEFINE_FIELD
 {
-  my ($pkg, $name, $rlexname) = @_;
+  my ($pkg, $name, $rlexname, $init, @attrs) = @_;
+
+  my $pkgHAS = eval "\\%${pkg}::HAS";
   require Data::Dumper;
-  eval "use strict; use feature 'class'; class $pkg { method $name { \$$name } }";
-  warn Data::Dumper::Dumper(@_, $@);
-  $$rlexname = "_$name";
+  warn Data::Dumper::Dumper(@_, $pkgHAS );
+
+  my %has = (
+    field => $name, member => $name,
+    read => 1, write => 0,
+    sort => scalar( keys %$pkgHAS ),
+  );
+
+  if ( defined $init )
+  {
+    die "field assignment to a reference can only be to code"
+      if ref $init && ref $init ne 'CODE';
+    $has{init} = $init;
+  }
+
+  my ($call, $filename, $line) = caller;
+  $pkg->MODIFY_FIELD_ATTRIBUTE($pkg, \%has, @attrs);
+  eval "# line $line $filename\nuse strict; use feature q{class}; class $pkg { member \$$has{member}; sub _x_borked {}; method $has{field} { \$$has{member} } }";
+  die $@ if $@;
+  $$rlexname = "$has{member}";
+
+  $pkgHAS->{$has{field}} = \%has;
 }
 
 sub MODIFY_FIELD_ATTRIBUTE
 {
-  return @_[1];
+  my $pkg = shift;
+  my $has = shift;
+  return @_;
 }
 
 1;

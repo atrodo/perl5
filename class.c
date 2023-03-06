@@ -120,7 +120,7 @@ Perl_class_op_field(pTHX_ SV *name)
 }
 
 OP *
-Perl_class_op_define_field(pTHX_ OP *name_op, OP *attrs)
+Perl_class_op_define_field(pTHX_ OP *name_op, OP *assign, OP *attrs)
 {
     PADNAME *pn = PadnamelistARRAY(PL_comppad_name)[name_op->op_targ];
     SV *name = newSVpvn(PadnamePV(pn)+1, PadnameLEN(pn)-1);
@@ -136,9 +136,18 @@ Perl_class_op_define_field(pTHX_ OP *name_op, OP *attrs)
     SV *pkg = newSVhek(HvNAME_HEK(PL_curstash));
     SV *new_name = newSVpvs("");
 
+    // If assng is a const null, it should warn or die
+    if ( assign == NULL )
+    {
+      warn("null:\n");
+      assign = newSVOP(OP_CONST, 1, newSV(0));
+    }
+
     OP *arg = newSVOP(OP_CONST, 0, pkg);
     arg = op_append_elem(OP_LIST, arg, newSVOP(OP_CONST, 1, newSVsv(name)));
     arg = op_append_elem(OP_LIST, arg, newSVOP(OP_CONST, 1, newRV(new_name)));
+    arg = op_append_elem(OP_LIST, arg, assign);
+    arg = op_append_elem(OP_LIST, arg, attrs);
 
     OP *imop = op_convert_list(OP_ENTERSUB, OPf_STACKED,
 		   op_append_elem(OP_LIST,

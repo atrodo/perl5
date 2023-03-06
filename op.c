@@ -776,7 +776,7 @@ Perl_allocmy(pTHX_ const char *const name, const STRLEN len, const U32 flags)
         addflags |= padadd_OUR;
     else if(PL_parser->in_my == KEY_state)
         addflags |= padadd_STATE;
-    else if(PL_parser->in_my == KEY_field)
+    else if(PL_parser->in_my == KEY_field || PL_parser->in_my == KEY_member)
         addflags |= padadd_FIELD;
 
     off = pad_add_name_pvn(name, len, addflags,
