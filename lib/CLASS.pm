@@ -1,4 +1,5 @@
 package CLASS;
+use v5.12;
 
 our $VERSION = '0.01';
 
@@ -8,6 +9,8 @@ sub import {
     require Carp;
     Carp::croak("CLASS does not export anything");
 }
+
+state %has_sort;
 
 sub _DEFINE_FIELD
 {
@@ -36,6 +39,8 @@ sub _DEFINE_FIELD
   die $@ if $@;
   $$rlexname = "$has{member}";
 
+  @{$has_sort{$pkg} ||= []}[$has{sort}] = "$has{field}";
+
   $pkgHAS->{$has{field}} = \%has;
 }
 
@@ -44,6 +49,30 @@ sub MODIFY_FIELD_ATTRIBUTE
   my $pkg = shift;
   my $has = shift;
   return @_;
+}
+
+sub new {
+  my $class = shift;
+  $class = CORE::ref($class) ? CORE::ref($class) : $class;
+  my $obj = bless({ ref($_[0]) eq ref {} ? %$_[0] : @_ }, $class);
+
+  my $pkgHAS = eval "\\%${class}::HAS";
+  foreach my $field ( @{ $has_sort{$class} || [] } )
+  {
+    warn $field;
+    my $has = $pkgHAS->{$field};
+    if ( exists $obj->{$field} )
+    {
+      $obj->{ $has->{member} } = delete $obj->{ $has->{field} };
+    }
+    elsif ( defined $has->{init} )
+    {
+      my $init = $has->{init};
+      $obj->{ $has->{member} } = ref $init ? $init->($obj) : $init;
+    }
+  }
+
+  return $obj;
 }
 
 1;
