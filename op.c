@@ -771,10 +771,15 @@ Perl_allocmy(pTHX_ const char *const name, const STRLEN len, const U32 flags)
     }
 
     /* allocate a spare slot and store the name in that slot */
+    U32 addflags = 0;
+    if(is_our)
+        addflags |= padadd_OUR;
+    else if(PL_parser->in_my == KEY_state)
+        addflags |= padadd_STATE;
+    else if(PL_parser->in_my == KEY_field || PL_parser->in_my == KEY_member)
+        addflags |= padadd_FIELD;
 
-    off = pad_add_name_pvn(name, len,
-                       (is_our ? padadd_OUR :
-                        PL_parser->in_my == KEY_state ? padadd_STATE : 0),
+    off = pad_add_name_pvn(name, len, addflags,
                     PL_parser->in_my_stash,
                     (is_our
                         /* $_ is always in main::, even with our */
@@ -3267,6 +3272,7 @@ Perl_op_lvalue_flags(pTHX_ OP *o, I32 type, U32 flags)
           && type == OP_LEAVESUBLV)
             o->op_private |= OPpMAYBE_LVSUB;
         /* FALLTHROUGH */
+    case OP_FIELDSV:
     case OP_PADSV:
         PL_modcount++;
         if (!type) /* local() */
@@ -11625,6 +11631,25 @@ Perl_oopsHV(pTHX_ OP *o)
     default:
         Perl_ck_warner_d(aTHX_ packWARN(WARN_INTERNAL), "oops: oopsHV");
         break;
+    }
+    return o;
+}
+
+OP *
+Perl_maybeFIELDop(pTHX_ OP *o)
+{
+    if (o->op_type == OP_PADSV || o->op_type == OP_PADANY)
+    {
+    PADOFFSET tmp = o->op_targ;
+    if (PAD_COMPNAME_FLAGS_isFIELD(tmp)) {
+        warn("### Pending identifier '%s', %d %d\n", PAD_COMPNAME_PV(tmp)+1, PAD_COMPNAME_FLAGS(tmp), tmp);
+        PADOFFSET self_po = pad_findmy_pvn("$self", 5, 0);
+
+        PADNAME *pn = PAD_COMPNAME_SV(tmp);
+        SV *name = newSVpvn_flags( PadnamePV(pn)+1,PadnameLEN(pn)-1, (PadnameUTF8(pn)) ? SVf_UTF8 : 0 );
+        o = newSVOP(OP_FIELDSV, 0, name);
+        o->op_targ = self_po;
+    }
     }
     return o;
 }

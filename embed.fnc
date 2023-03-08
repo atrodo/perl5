@@ -740,6 +740,7 @@ Aodxp	|void	|blockhook_register					\
 p	|void	|boot_core_builtin
 : Used in perl.c
 p	|void	|boot_core_UNIVERSAL
+p	|void	|boot_core_CLASS
 : Used in perl.c
 p	|void	|boot_core_PerlIO
 Cp	|void	|call_list	|I32 oldscope				\
@@ -3661,6 +3662,22 @@ XEop	|char  *|dup_warnings	|NULLOK char *warnings
 
 Amd	|const char * const|phase_name					\
 				|enum perl_phase
+pR	|OP *	|maybeFIELDop	|NN OP *o
+Cp	|void	|class_setup	|NN HV *stash
+Cp	|void	|class_setup_method					\
+				|NN CV *cv
+Cp	|void	|class_extends	|NN OP *parent_op
+Cp	|OP *	|class_wrap_method_body 				\
+				|NULLOK OP *o
+Cp	|OP *	|class_op_define_field					\
+				|NN OP *name_op 			\
+				|NULLOK OP *assign			\
+				|NN OP *attrs
+Cp	|OP *	|class_op_field |NN SV *name
+Cp	|OP *	|class_op_accessor_get					\
+				|NN SV *name
+Cp	|void	|croak_kw_unless_class					\
+				|NN const char *kw
 #if ( defined(AF_INET) && defined(HAS_SOCKET) && defined(PF_INET) && \
     defined(SOCK_DGRAM) ) || defined(HAS_SOCKETPAIR)
 pR	|int	|PerlSock_socketpair_cloexec				\

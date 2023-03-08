@@ -45,6 +45,7 @@ my %feature = (
     defer                   => 'defer',
     extra_paired_delimiters => 'more_delims',
     module_true             => 'module_true',
+    class                   => 'class',
 );
 
 # NOTE: If a feature is ever enabled in a non-contiguous range of Perl

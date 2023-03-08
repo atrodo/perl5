@@ -173,9 +173,11 @@
 # define ck_entersub_args_list(a)               Perl_ck_entersub_args_list(aTHX_ a)
 # define ck_entersub_args_proto(a,b,c)          Perl_ck_entersub_args_proto(aTHX_ a,b,c)
 # define ck_entersub_args_proto_or_list(a,b,c)  Perl_ck_entersub_args_proto_or_list(aTHX_ a,b,c)
+# define class_wrap_method_body(a)              Perl_class_wrap_method_body(aTHX_ a)
 # define clear_defarray(a,b)                    Perl_clear_defarray(aTHX_ a,b)
 # define cop_fetch_label(a,b,c)                 Perl_cop_fetch_label(aTHX_ a,b,c)
 # define cop_store_label(a,b,c,d)               Perl_cop_store_label(aTHX_ a,b,c,d)
+# define croak_kw_unless_class(a)               Perl_croak_kw_unless_class(aTHX_ a)
 # define croak_memory_wrap                      Perl_croak_memory_wrap
 # define croak_no_modify                        Perl_croak_no_modify
 # define croak_sv(a)                            Perl_croak_sv(aTHX_ a)

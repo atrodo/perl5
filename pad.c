@@ -565,6 +565,9 @@ S_pad_alloc_name(pTHX_ PADNAME *name, U32 flags, HV *typestash,
     else if (flags & padadd_STATE) {
         PadnameFLAGS(name) |= PADNAMEf_STATE;
     }
+    else if (flags & padadd_FIELD) {
+        PadnameFLAGS(name) |= PADNAMEf_FIELD;
+    }
 
     padnamelist_store(PL_comppad_name, offset, name);
     if (PadnameLEN(name) > 1)
@@ -602,7 +605,7 @@ Perl_pad_add_name_pvn(pTHX_ const char *namepv, STRLEN namelen,
 
     PERL_ARGS_ASSERT_PAD_ADD_NAME_PVN;
 
-    if (flags & ~(padadd_OUR|padadd_STATE|padadd_NO_DUP_CHECK))
+    if (flags & ~(padadd_OUR|padadd_STATE|padadd_FIELD|padadd_NO_DUP_CHECK))
         Perl_croak(aTHX_ "panic: pad_add_name_pvn illegal flag bits 0x%" UVxf,
                    (UV)flags);
 
@@ -1281,9 +1284,12 @@ S_pad_findlex(pTHX_ const char *namepv, STRLEN namelen, U32 flags, const CV* cv,
         PL_comppad = PadlistARRAY(padlist)[1];
         PL_curpad = AvARRAY(PL_comppad);
 
+        U32 new_flags = 0;
+        new_flags |= PadnameIsSTATE(*out_name) ? padadd_STATE : 0;
+        new_flags |= PadnameIsFIELD(*out_name) ? padadd_FIELD : 0;
         new_offset
             = pad_alloc_name(new_name,
-                              PadnameIsSTATE(*out_name) ? padadd_STATE : 0,
+                              new_flags,
                               PadnameTYPE(*out_name),
                               PadnameOURSTASH(*out_name)
                               );
