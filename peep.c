@@ -4339,12 +4339,8 @@ Perl_peep(pTHX_ OP *o)
         finish:
             if ( accept )
             {
-                UNOP_AUX_item *arg_buf = NULL;
-                arg_buf = (UNOP_AUX_item*)PerlMemShared_malloc(
-                    sizeof(UNOP_AUX_item) * (size + 1));
-                Copy(cUNOP_AUXx(o->op_next)->op_aux-1, arg_buf, size+1, UNOP_AUX_item);
 
-                ((COP *) o)->cop_md_accessor.cop_mdacc_get = arg_buf+1;
+                ((COP *) o)->cop_md_accessor.cop_mdacc_get_mdr = o->op_next;
                 o->op_private |= OPpMD_ACCESSOR;
             }
           }

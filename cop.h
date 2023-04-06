@@ -431,7 +431,7 @@ the octets.
 #include "mydtrace.h"
 
 struct cop_mdacc {
-  UNOP_AUX_item *cop_mdacc_get;
+  OP *cop_mdacc_get_mdr;
 };
 typedef struct cop_mdacc COP_mdacc;
 

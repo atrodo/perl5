@@ -5430,17 +5430,19 @@ PP(pp_entersub)
         U8 gimme;
         COP *cv_start;
         COP_mdacc *accessor;
-        UNOP_AUX_item *md_items;
+        OP *mdr_op;
+        UNOP_AUX_item *mdr_items;
 
         cv_start = (COP *)CvSTART(cv);
+
         if (
                cv_start
             && ( cv_start->op_private & OPpMD_ACCESSOR )
             && ( accessor = &cv_start->cop_md_accessor )
-            && ( md_items = accessor->cop_mdacc_get )
+            && ( mdr_op = accessor->cop_mdacc_get_mdr )
+            && ( mdr_items = cUNOP_AUXx(mdr_op)->op_aux )
            )
         {
-            if ( md_items && (md_items->uv & MDEREF_ACTION_MASK) == MDEREF_AV_gvav_aelem )
             {
                 SV **svp = MARK;
                 if ( mut_av == NULL )
@@ -5458,8 +5460,14 @@ PP(pp_entersub)
 
                 SP = MARK;
                 PUTBACK;
-                S_multideref(aTHX_ md_items);
+                COP *prev_cop = PL_curcop;
+                OP *prev_op = PL_op;
+                PL_curcop = cv_start;
+                PL_op = mdr_op;
+                S_multideref(aTHX_ mdr_items);
                 *defavp = prev_avp;
+                PL_curcop = prev_cop;
+                PL_op = prev_op;
                 return NORMAL;
             }
         }
