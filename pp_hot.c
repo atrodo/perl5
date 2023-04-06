@@ -3635,10 +3635,10 @@ S_softref2xv_lite(pTHX_ SV *const sv, const char *const what,
  * one UV, and only reload when it becomes zero.
  */
 
-STATIC OP *
-S_multideref(pTHX_ UNOP_AUX_item *items)
+PP(pp_multideref)
 {
     SV *sv = NULL; /* init to avoid spurious 'may be used uninitialized' */
+    UNOP_AUX_item *items = cUNOP_AUXx(PL_op)->op_aux;
     UV actions = items->uv;
 
     assert(actions);
@@ -4041,13 +4041,6 @@ S_multideref(pTHX_ UNOP_AUX_item *items)
     } /* while */
     /* NOTREACHED */
 }
-
-PP(pp_multideref)
-{
-    UNOP_AUX_item *items = cUNOP_AUXx(PL_op)->op_aux;
-    return S_multideref(aTHX_ items);
-}
-
 
 PP(pp_iter)
 {
@@ -5431,20 +5424,18 @@ PP(pp_entersub)
         COP *cv_start;
         COP_mdacc *accessor;
         OP *mdr_op;
-        UNOP_AUX_item *mdr_items;
 
         cv_start = (COP *)CvSTART(cv);
 
         if (
-               cv_start
+            1
+            && cv_start
             && ( cv_start->op_private & OPpMD_ACCESSOR )
             && ( accessor = &cv_start->cop_md_accessor )
             && ( mdr_op = accessor->cop_mdacc_get_mdr )
-            && ( mdr_items = cUNOP_AUXx(mdr_op)->op_aux )
            )
         {
             {
-                SV **svp = MARK;
                 if ( mut_av == NULL )
                 {
                     mut_av = SvREFCNT_inc(newAV());
@@ -5464,7 +5455,7 @@ PP(pp_entersub)
                 OP *prev_op = PL_op;
                 PL_curcop = cv_start;
                 PL_op = mdr_op;
-                S_multideref(aTHX_ mdr_items);
+                Perl_pp_multideref(aTHX);
                 *defavp = prev_avp;
                 PL_curcop = prev_cop;
                 PL_op = prev_op;
