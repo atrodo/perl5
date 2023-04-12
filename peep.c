@@ -4222,6 +4222,116 @@ Perl_peep(pTHX_ OP *o)
     CALL_RPEEP(o);
 }
 
+bool
+S_multideref_paduse(OP *o)
+{
+    if ( o->op_type != OP_MULTIDEREF )
+        return false;
+
+    // Make sure the multideref only contains things we can handle
+    UNOP_AUX_item *items = cUNOP_AUXx(o)->op_aux;
+
+    // Pull the number of items from the hidden first item
+    Size_t size = (items-1)->ssize;
+    UNOP_AUX_item *max_items = items + size;
+
+    UV actions = items->uv;
+    bool paduse = false;
+    while (1)
+    {
+        if ( items == max_items )
+          break;
+
+        switch (actions & MDEREF_ACTION_MASK)
+        {
+            case MDEREF_reload:
+                actions = (++items)->uv;
+                continue;
+
+            case MDEREF_AV_padsv_vivify_rv2av_aelem:     /* $lex->[...] */
+            case MDEREF_AV_padav_aelem:                 /* $lex[...] */
+                /* Pulls pad var, implies AV_aelem, which pulls
+                   another item */
+                paduse = true;
+                goto finish;
+
+            case MDEREF_AV_gvsv_vivify_rv2av_aelem:     /* $pkg->[...] */
+            case MDEREF_AV_gvav_aelem:                  /* $pkg[...] */
+                /* Pulls global var, implies AV_aelem, which pulls
+                   another item */
+                ++items;
+            case MDEREF_AV_vivify_rv2av_aelem:           /* vivify, ->[...] */
+                /* this is the OPpDEREF action normally found at the end of
+                 * ops like aelem, helem, rv2sv. Does not pull an item, but
+                 * does imply AV_rv2av_aelem and AV_aelem, the latter pulls
+                 * an item */
+                switch (actions & MDEREF_INDEX_MASK) {
+                    case MDEREF_INDEX_none:
+                        goto finish;
+                    case MDEREF_INDEX_const:
+                        ++items;
+                        break;
+                    case MDEREF_INDEX_padsv:
+                        paduse = true;
+                        goto finish;
+                    case MDEREF_INDEX_gvsv:
+                        ++items;
+                        break;
+                }
+                break;
+            case MDEREF_AV_pop_rv2av_aelem:             /* expr->[...] */
+                /* Pulls the first item from the stack, implies
+                   AV_rv2av_aelem, which implies AV_aelem, which
+                   pulls another item */
+                paduse = true;
+                goto finish;
+
+            case MDEREF_HV_padsv_vivify_rv2hv_helem:    /* $lex->{...} */
+            case MDEREF_HV_padhv_helem:                 /* $lex{...} */
+                /* Pulls pad var, implies HV_aelem, which pulls
+                   another item */
+                paduse = true;
+                goto finish;
+            case MDEREF_HV_gvsv_vivify_rv2hv_helem:     /* $pkg->{...} */
+            case MDEREF_HV_gvhv_helem:                  /* $pkg{...} */
+                /* Pulls global var, implies HV_aelem, which pulls
+                   another item */
+                ++items;
+                /* FALLTHROUGH */
+            case MDEREF_HV_vivify_rv2hv_helem:           /* vivify, ->{...} */
+                /* this is the OPpDEREF action normally found at the end of
+                 * ops like aelem, helem, rv2sv. Does not pull an item, but
+                 * does imply AV_rv2av_aelem and AV_aelem, the latter pulls
+                 * an item */
+                switch (actions & MDEREF_INDEX_MASK) {
+                    case MDEREF_INDEX_none:
+                        goto finish;
+                    case MDEREF_INDEX_const:
+                        ++items;
+                        break;
+                    case MDEREF_INDEX_padsv:
+                        paduse = true;
+                        goto finish;
+                    case MDEREF_INDEX_gvsv:
+                        ++items;
+                        break;
+                }
+                break;
+
+            case MDEREF_HV_pop_rv2hv_helem:             /* expr->{...} */
+                /* Pulls the first item from the stack, implies
+                   HV_rv2hv_aelem, which implies HV_helem, which
+                   pulls another item */
+                paduse = true;
+                goto finish;
+        }
+        actions >>= MDEREF_SHIFT;
+    }
+
+    finish:
+        return paduse;
+}
+
 void
 Perl_peepcv(pTHX_ CV *cv)
 {
@@ -4243,107 +4353,7 @@ Perl_peepcv(pTHX_ CV *cv)
           if ( o->op_next->op_type == OP_MULTIDEREF
              && o->op_next->op_next->op_type == OP_LEAVESUB )
           {
-            // Make sure the multideref only contains things we can handle
-            UNOP_AUX_item *items = cUNOP_AUXx(o->op_next)->op_aux;
-
-            // Pull the number of items from the hidden first item
-            Size_t size = (items-1)->ssize;
-            UNOP_AUX_item *max_items = items + size;
-
-            UV actions = items->uv;
-            bool accept = true;
-            while (1)
-            {
-                if ( items == max_items )
-                  break;
-
-                switch (actions & MDEREF_ACTION_MASK)
-                {
-                    case MDEREF_reload:
-                        actions = (++items)->uv;
-                        continue;
-
-                    case MDEREF_AV_padsv_vivify_rv2av_aelem:     /* $lex->[...] */
-                    case MDEREF_AV_padav_aelem:                 /* $lex[...] */
-                        /* Pulls pad var, implies AV_aelem, which pulls
-                           another item */
-                        accept = false;
-                        goto finish;
-
-                    case MDEREF_AV_gvsv_vivify_rv2av_aelem:     /* $pkg->[...] */
-                    case MDEREF_AV_gvav_aelem:                  /* $pkg[...] */
-                        /* Pulls global var, implies AV_aelem, which pulls
-                           another item */
-                        ++items;
-                    case MDEREF_AV_vivify_rv2av_aelem:           /* vivify, ->[...] */
-                        /* this is the OPpDEREF action normally found at the end of
-                         * ops like aelem, helem, rv2sv. Does not pull an item, but
-                         * does imply AV_rv2av_aelem and AV_aelem, the latter pulls
-                         * an item */
-                        switch (actions & MDEREF_INDEX_MASK) {
-                            case MDEREF_INDEX_none:
-                                goto finish;
-                            case MDEREF_INDEX_const:
-                                ++items;
-                                break;
-                            case MDEREF_INDEX_padsv:
-                                accept = false;
-                                goto finish;
-                            case MDEREF_INDEX_gvsv:
-                                ++items;
-                                break;
-                        }
-                        break;
-                    case MDEREF_AV_pop_rv2av_aelem:             /* expr->[...] */
-                        /* Pulls the first item from the stack, implies
-                           AV_rv2av_aelem, which implies AV_aelem, which
-                           pulls another item */
-                        accept = false;
-                        goto finish;
-
-		    case MDEREF_HV_padsv_vivify_rv2hv_helem:    /* $lex->{...} */
-		    case MDEREF_HV_padhv_helem:                 /* $lex{...} */
-                        /* Pulls pad var, implies HV_aelem, which pulls
-                           another item */
-                        accept = false;
-                        goto finish;
-		    case MDEREF_HV_gvsv_vivify_rv2hv_helem:     /* $pkg->{...} */
-		    case MDEREF_HV_gvhv_helem:                  /* $pkg{...} */
-                        /* Pulls global var, implies HV_aelem, which pulls
-                           another item */
-                        ++items;
-                        /* FALLTHROUGH */
-		    case MDEREF_HV_vivify_rv2hv_helem:           /* vivify, ->{...} */
-                        /* this is the OPpDEREF action normally found at the end of
-                         * ops like aelem, helem, rv2sv. Does not pull an item, but
-                         * does imply AV_rv2av_aelem and AV_aelem, the latter pulls
-                         * an item */
-                        switch (actions & MDEREF_INDEX_MASK) {
-                            case MDEREF_INDEX_none:
-                                goto finish;
-                            case MDEREF_INDEX_const:
-                                ++items;
-                                break;
-                            case MDEREF_INDEX_padsv:
-                                accept = false;
-                                goto finish;
-                            case MDEREF_INDEX_gvsv:
-                                ++items;
-                                break;
-                        }
-                        break;
-
-                    case MDEREF_HV_pop_rv2hv_helem:             /* expr->{...} */
-                        /* Pulls the first item from the stack, implies
-                           HV_rv2hv_aelem, which implies HV_helem, which
-                           pulls another item */
-                        accept = false;
-                        goto finish;
-                }
-                actions >>= MDEREF_SHIFT;
-            }
-
-        finish:
+            bool accept = !S_multideref_paduse(o->op_next);
             if ( accept )
             {
                 ((COP *) o)->cop_md_accessor.cop_mdacc_get_mdr = o->op_next;
