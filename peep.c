@@ -4220,6 +4220,13 @@ void
 Perl_peep(pTHX_ OP *o)
 {
     CALL_RPEEP(o);
+}
+
+void
+Perl_peepcv(pTHX_ CV *cv)
+{
+    OP *o;
+    o = (OP *)CvSTART(cv);
 
     UV md_accessor = 0;
     {
@@ -4339,7 +4346,6 @@ Perl_peep(pTHX_ OP *o)
         finish:
             if ( accept )
             {
-
                 ((COP *) o)->cop_md_accessor.cop_mdacc_get_mdr = o->op_next;
                 o->op_private |= OPpMD_ACCESSOR;
             }

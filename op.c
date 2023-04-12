@@ -2790,6 +2790,7 @@ S_process_optree(pTHX_ CV *cv, OP *optree, OP* start)
         /* now that optimizer has done its work, adjust pad values */
         pad_tidy(optree->op_type == OP_LEAVEWRITE ? padtidy_FORMAT
                  : CvCLONE(cv) ? padtidy_SUBCLONE : padtidy_SUB);
+        Perl_peepcv(cv);
     }
 }
 
