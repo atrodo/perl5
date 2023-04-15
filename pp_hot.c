@@ -5346,6 +5346,12 @@ PP(pp_entersub)
         }
     }
 
+    if ( UNLIKELY(CvIsSUBOVERRIDE(cv) && CvSUBOVERRIDE(cv) != NULL) )
+    {
+        if ( CvSUBOVERRIDE(cv)(aTHX_ cv) )
+            return NORMAL;
+    }
+
     /* At this point we want to save PL_savestack_ix, either by doing a
      * cx_pushsub(), or for XS, doing an ENTER. But we don't yet know the final
      * CV we will be using (so we don't know whether its XS, so we can't

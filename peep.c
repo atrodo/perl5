@@ -4332,6 +4332,99 @@ S_multideref_paduse(OP *o)
         return paduse;
 }
 
+struct md_accessor_aux
+{
+    OP *md_op;
+    AV *tmp_defavp;
+};
+
+bool
+S_defgv_hek_accessor(pTHX_ CV *cv)
+{
+    dSP;
+    dMARK;
+
+    // This completely replaces MDEREF_INDEX_const | MDEREF_AV_gvav_aelem
+    // as we don't need to place this sv onto PL_defgv just to find it again
+    SV *sv = *(MARK+1);
+    SV *keysv = CvSUBOVERRIDEAUX(cv).any_sv;
+
+    SP = MARK;
+    PUTBACK;
+
+    // MDEREF_HV_vivify_rv2hv_helem
+    sv = vivify_ref(sv, OPpDEREF_HV);
+    SvGETMAGIC(sv);
+    if (LIKELY(SvROK(sv))) {
+	if (UNLIKELY(SvAMAGIC(sv))) {
+	    sv = amagic_deref_call(sv, to_hv_amg);
+	}
+	sv = SvRV(sv);
+	if (UNLIKELY(SvTYPE(sv) != SVt_PVHV))
+	    DIE(aTHX_ "Not a HASH reference");
+    }
+    else if (SvTYPE(sv) != SVt_PVHV) {
+	if (!isGV_with_GP(sv))
+            DIE(aTHX_ "Unable to handle softref2xv");
+	sv = MUTABLE_SV(GvHVn((GV*)sv));
+    }
+
+    // MDEREF_INDEX_const
+    SV **svp;
+    HV * const hv = (HV*)sv;
+    HE* he;
+
+    he = hv_fetch_ent(hv, keysv, 0, 0);
+    svp = he ? &HeVAL(he) : NULL;
+
+    sv = (svp && *svp ? *svp : &PL_sv_undef);
+    /* see note in pp_helem() */
+    if (SvRMAGICAL(hv) && SvGMAGICAL(sv))
+        mg_get(sv);
+
+    XPUSHs(sv);
+    PUTBACK;
+    return true;
+}
+
+bool
+S_multideref_accessor(pTHX_ CV *cv)
+{
+    dSP;
+    dMARK;
+
+    struct md_accessor_aux *aux = (struct md_accessor_aux *)CvSUBOVERRIDEAUX(cv).any_ptr;
+
+    OP *cv_start = (OP *)CvSTART(cv);
+    OP *o = aux->md_op;
+    AV *tmp_defavp = aux->tmp_defavp;
+
+    av_store_simple(tmp_defavp, 0, SvREFCNT_inc_simple_NN(*(MARK+1)));
+
+    AV **defavp;
+    defavp = &GvAV(PL_defgv);
+    AV *prev_avp = *defavp;
+    *defavp = tmp_defavp;
+
+    SP = MARK;
+    PUTBACK;
+    COP *prev_cop = PL_curcop;
+    OP *prev_op = PL_op;
+    PL_curcop = cv_start;
+    PL_op = o;
+    Perl_pp_multideref(aTHX);
+    *defavp = prev_avp;
+    PL_op = prev_op;
+    PL_curcop = prev_cop;
+    return true;
+}
+
+#define GV_AV_HV_CONST_MDEREF (\
+    (MDEREF_FLAG_last | MDEREF_INDEX_const | MDEREF_HV_vivify_rv2hv_helem)  \
+        << MDEREF_SHIFT                                                     \
+    | (MDEREF_INDEX_const | MDEREF_AV_gvav_aelem)                           \
+    )
+
 void
 Perl_peepcv(pTHX_ CV *cv)
 {
@@ -4346,18 +4439,48 @@ Perl_peepcv(pTHX_ CV *cv)
             grok_atoUV(s, &md_accessor, NULL);
     }
 
-    if ( md_accessor > 0 )
+    if ( md_accessor > 0
+         && (!CvIsSUBOVERRIDE(cv)) )
     {
         if ( o->op_type == OP_NEXTSTATE )
         {
           if ( o->op_next->op_type == OP_MULTIDEREF
              && o->op_next->op_next->op_type == OP_LEAVESUB )
           {
-            bool accept = !S_multideref_paduse(o->op_next);
-            if ( accept )
+            OP *md_op = o->op_next;
+            UNOP_AUX_item *items = cUNOP_AUXx(md_op)->op_aux;
+            Size_t size = (items-1)->ssize;
+            UV actions = items->uv;
+            if ( size == 4 && actions == GV_AV_HV_CONST_MDEREF )
             {
-                ((COP *) o)->cop_md_accessor.cop_mdacc_get_mdr = o->op_next;
-                o->op_private |= OPpMD_ACCESSOR;
+                SV *sv = UNOP_AUX_item_sv(++items);
+                IV elem = (++items)->iv;
+
+                if ( sv == PL_defgv && elem == 0
+                    && !( md_op->op_private & (OPpMULTIDEREF_EXISTS|OPpMULTIDEREF_DELETE))
+                    && !( md_op->op_flags & OPf_MOD)
+                    && !( md_op->op_private & OPpLVAL_DEFER)
+                    && !( md_op->op_private & OPpLVAL_INTRO) )
+                {
+                    SV *keysv = UNOP_AUX_item_sv(++items);
+                    CvIsSUBOVERRIDE_on(cv);
+                    CvSUBOVERRIDE(cv) = S_defgv_hek_accessor;
+                    CvSUBOVERRIDEAUX(cv).any_sv = keysv;
+                }
+            }
+
+            if ( (!CvIsSUBOVERRIDE(cv)) && !S_multideref_paduse(md_op) )
+            {
+                AV *tmp_defavp = SvREFCNT_inc(newAV());
+                av_store(tmp_defavp, 0, &PL_sv_undef);
+                struct md_accessor_aux *aux = (struct md_accessor_aux*)PerlMemShared_malloc(
+                                    sizeof(struct md_accessor_aux));
+                aux->md_op = md_op;
+                aux->tmp_defavp = tmp_defavp;
+
+                CvIsSUBOVERRIDE_on(cv);
+                CvSUBOVERRIDE(cv) = S_multideref_accessor;
+                CvSUBOVERRIDEAUX(cv).any_ptr = aux;
             }
           }
         }

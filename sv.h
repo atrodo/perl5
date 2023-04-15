@@ -644,6 +644,8 @@ typedef U32 cv_flags_t;
         void *		xcv_hscxt;						\
     }		xcv_padlist_u;							\
     CV *	xcv_outside;							\
+    bool	(*xcv_suboverride)(pTHX_ CV *);					\
+    ANY 	xcv_suboverride_aux;						\
     U32		xcv_outside_seq; /* the COP sequence (at the point of our	\
                                   * compilation) in the lexically enclosing	\
                                   * sub */					\
