@@ -430,11 +430,6 @@ the octets.
 
 #include "mydtrace.h"
 
-struct cop_mdacc {
-  OP *cop_mdacc_get_mdr;
-};
-typedef struct cop_mdacc COP_mdacc;
-
 struct cop {
     BASEOP
     /* On LP64 putting this here takes advantage of the fact that BASEOP isn't
@@ -467,9 +462,6 @@ struct cop {
        notice.  Use the macros to test for features.
     */
     U32		cop_features;
-
-    /* Pointer to a copy of the accessor's multideref */
-    COP_mdacc   cop_md_accessor;
 };
 
 /*

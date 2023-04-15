@@ -4042,6 +4042,7 @@ PP(pp_multideref)
     /* NOTREACHED */
 }
 
+
 PP(pp_iter)
 {
     PERL_CONTEXT *cx = CX_CUR();
@@ -5264,8 +5265,6 @@ Perl_clear_defarray(pTHX_ AV* av, bool abandon)
 }
 
 
-STATIC AV *mut_av;
-
 PP(pp_entersub)
 {
     dSP; dPOPss;
@@ -5427,47 +5426,6 @@ PP(pp_entersub)
         I32 depth;
         bool hasargs;
         U8 gimme;
-        COP *cv_start;
-        COP_mdacc *accessor;
-        OP *mdr_op;
-
-        cv_start = (COP *)CvSTART(cv);
-
-        if (
-            1
-            && cv_start
-            && ( cv_start->op_private & OPpMD_ACCESSOR )
-            && ( accessor = &cv_start->cop_md_accessor )
-            && ( mdr_op = accessor->cop_mdacc_get_mdr )
-           )
-        {
-            {
-                if ( mut_av == NULL )
-                {
-                    mut_av = SvREFCNT_inc(newAV());
-                    SvREFCNT_inc_simple_NN(mut_av);
-                    av_store(mut_av, 0, &PL_sv_undef);
-                }
-                av_store_simple(mut_av, 0, SvREFCNT_inc(*(MARK+1)));
-
-                AV **defavp;
-                defavp = &GvAV(PL_defgv);
-                AV *prev_avp = *defavp;
-                *defavp = mut_av;
-
-                SP = MARK;
-                PUTBACK;
-                COP *prev_cop = PL_curcop;
-                OP *prev_op = PL_op;
-                PL_curcop = cv_start;
-                PL_op = mdr_op;
-                Perl_pp_multideref(aTHX);
-                *defavp = prev_avp;
-                PL_curcop = prev_cop;
-                PL_op = prev_op;
-                return NORMAL;
-            }
-        }
 
         /* keep PADTMP args alive throughout the call (we need to do this
          * because @_ isn't refcounted). Note that we create the mortals
