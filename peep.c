@@ -4222,7 +4222,7 @@ Perl_peep(pTHX_ OP *o)
     CALL_RPEEP(o);
 }
 
-bool
+static bool
 S_multideref_paduse(OP *o)
 {
     if ( o->op_type != OP_MULTIDEREF )
@@ -4338,7 +4338,7 @@ struct md_accessor_aux
     AV *tmp_defavp;
 };
 
-bool
+static bool
 S_defgv_hek_accessor(pTHX_ CV *cv)
 {
     dSP;
@@ -4387,7 +4387,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     return true;
 }
 
-bool
+static bool
 S_multideref_accessor(pTHX_ CV *cv)
 {
     dSP;
