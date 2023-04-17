@@ -4342,10 +4342,16 @@ static bool
 S_defgv_hek_accessor(pTHX_ CV *cv)
 {
     dSP;
-    dMARK;
+    SV **mark = PL_stack_base;
+
+    if ( SP - MARK <= 1 )
+    {
+        return false;
+    }
 
     // This completely replaces MDEREF_INDEX_const | MDEREF_AV_gvav_aelem
     // as we don't need to place this sv onto PL_defgv just to find it again
+    mark = PL_stack_base + POPMARK;
     SV *sv = *(MARK+1);
     SV *keysv = CvSUBOVERRIDEAUX(cv).any_sv;
 
