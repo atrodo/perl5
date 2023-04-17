@@ -167,6 +167,7 @@ recursive, but it's recursive on basic blocks, not on tree nodes.
 #include "invlist_inline.h"
 
 #define CALL_PEEP(o) PL_peepp(aTHX_ o)
+#define CALL_PEEPCV(cv) PL_peeppcv(aTHX_ cv)
 #define CALL_OPFREEHOOK(o) if (PL_opfreehook) PL_opfreehook(aTHX_ o)
 
 static const char array_passed_to_stat[] = "Array passed to stat will be coerced to a scalar";
@@ -2790,7 +2791,7 @@ S_process_optree(pTHX_ CV *cv, OP *optree, OP* start)
         /* now that optimizer has done its work, adjust pad values */
         pad_tidy(optree->op_type == OP_LEAVEWRITE ? padtidy_FORMAT
                  : CvCLONE(cv) ? padtidy_SUBCLONE : padtidy_SUB);
-        Perl_peepcv(cv);
+        CALL_PEEPCV(cv);
     }
 }
 

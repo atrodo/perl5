@@ -458,6 +458,8 @@ thread's copy.
 
 PERLVARI(I, rpeepp,	peep_t, Perl_rpeep)
 
+PERLVARI(I, peeppcv,	peepcv_t, Perl_peepcv)
+
 /*
 =for apidoc_section $optrees
 =for apidoc Amn|Perl_ophook_t|PL_opfreehook

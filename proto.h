@@ -3449,6 +3449,12 @@ Perl_peep(pTHX_ OP *o)
         __attribute__visibility__("hidden");
 #define PERL_ARGS_ASSERT_PEEP
 
+PERL_CALLCONV void
+Perl_peepcv(pTHX_ CV *cv)
+        __attribute__visibility__("hidden");
+#define PERL_ARGS_ASSERT_PEEPCV                 \
+        assert(cv)
+
 PERL_CALLCONV PerlInterpreter *
 perl_alloc(void);
 #define PERL_ARGS_ASSERT_PERL_ALLOC

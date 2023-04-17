@@ -2466,6 +2466,7 @@ p	|U32	|parse_unicode_opts					\
 
 : peephole optimiser
 p	|void	|peep		|NULLOK OP *o
+p	|void	|peepcv 	|NN CV *cv
 
 ATdo	|PerlInterpreter *|perl_alloc
 ATdo	|void	|perl_construct |NN PerlInterpreter *my_perl
