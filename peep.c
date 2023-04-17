@@ -4260,6 +4260,8 @@ S_multideref_paduse(OP *o)
                 /* Pulls global var, implies AV_aelem, which pulls
                    another item */
                 ++items;
+                /* FALLTHROUGH */
+
             case MDEREF_AV_vivify_rv2av_aelem:           /* vivify, ->[...] */
                 /* this is the OPpDEREF action normally found at the end of
                  * ops like aelem, helem, rv2sv. Does not pull an item, but
@@ -4298,6 +4300,7 @@ S_multideref_paduse(OP *o)
                    another item */
                 ++items;
                 /* FALLTHROUGH */
+
             case MDEREF_HV_vivify_rv2hv_helem:           /* vivify, ->{...} */
                 /* this is the OPpDEREF action normally found at the end of
                  * ops like aelem, helem, rv2sv. Does not pull an item, but
