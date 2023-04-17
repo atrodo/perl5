@@ -4448,50 +4448,77 @@ Perl_peepcv(pTHX_ CV *cv)
             grok_atoUV(s, &md_accessor, NULL);
     }
 
-    if ( md_accessor > 0
+    if ( md_accessor > 0 || getenv("AAA")
          && (!CvIsSUBOVERRIDE(cv)) )
     {
         if ( o->op_type == OP_NEXTSTATE )
         {
-          if ( o->op_next->op_type == OP_MULTIDEREF
-             && o->op_next->op_next->op_type == OP_LEAVESUB )
-          {
-            OP *md_op = o->op_next;
-            UNOP_AUX_item *items = cUNOP_AUXx(md_op)->op_aux;
-            Size_t size = (items-1)->ssize;
-            UV actions = items->uv;
-            if ( size == 4 && actions == GV_AV_HV_CONST_MDEREF )
-            {
-                SV *sv = UNOP_AUX_item_sv(++items);
-                IV elem = (++items)->iv;
+            OP *multideref = NULL;
 
-                if ( sv == PL_defgv && elem == 0
-                    && !( md_op->op_private & (OPpMULTIDEREF_EXISTS|OPpMULTIDEREF_DELETE))
-                    && !( md_op->op_flags & OPf_MOD)
-                    && !( md_op->op_private & OPpLVAL_DEFER)
-                    && !( md_op->op_private & OPpLVAL_INTRO) )
+            OP *maybe_md = NULL;
+            OP *no = o->op_next;
+
+            // A straight return $_[0]{x}
+            if ( !multideref
+                && (no = o->op_next)  && no->op_type == OP_MULTIDEREF && ( maybe_md = no )
+                && (no = no->op_next) && no->op_type == OP_LEAVESUB
+            )
+            {
+              multideref = o->op_next;
+            }
+
+            // A @_ > 1 && ...; $_[0]{x}
+            if ( !multideref
+                && (no = o->op_next)  && no->op_type == OP_GV && cGVOPx_gv(no) == PL_defgv
+                && (no = no->op_next) && no->op_type == OP_RV2AV
+                && (no = no->op_next) && no->op_type == OP_CONST && SvIV(cSVOPx_sv(no)) == 1
+                && (no = no->op_next) && ( no->op_type == OP_GT ||  no->op_type == OP_NE )
+                && (no = no->op_next) && no->op_type == OP_AND
+                && (no = no->op_next) && no->op_type == OP_NEXTSTATE
+                && (no = no->op_next) && no->op_type == OP_MULTIDEREF && ( maybe_md = no )
+                && (no = no->op_next) && no->op_type == OP_LEAVESUB
+            )
+            {
+              multideref = maybe_md;
+            }
+
+            if ( multideref )
+            {
+                UNOP_AUX_item *items = cUNOP_AUXx(multideref)->op_aux;
+                Size_t size = (items-1)->ssize;
+                UV actions = items->uv;
+                if ( size == 4 && actions == GV_AV_HV_CONST_MDEREF )
                 {
-                    SV *keysv = UNOP_AUX_item_sv(++items);
+                    SV *sv = UNOP_AUX_item_sv(++items);
+                    IV elem = (++items)->iv;
+
+                    if ( sv == PL_defgv && elem == 0
+                        && !( multideref->op_private & (OPpMULTIDEREF_EXISTS|OPpMULTIDEREF_DELETE))
+                        && !( multideref->op_flags & OPf_MOD)
+                        && !( multideref->op_private & OPpLVAL_DEFER)
+                        && !( multideref->op_private & OPpLVAL_INTRO) )
+                    {
+                        SV *keysv = UNOP_AUX_item_sv(++items);
+                        CvIsSUBOVERRIDE_on(cv);
+                        CvSUBOVERRIDE(cv) = S_defgv_hek_accessor;
+                        CvSUBOVERRIDEAUX(cv).any_sv = keysv;
+                    }
+                }
+
+                if ( (!CvIsSUBOVERRIDE(cv)) && !S_multideref_paduse(multideref) )
+                {
+                    AV *tmp_defavp = SvREFCNT_inc(newAV());
+                    av_store(tmp_defavp, 0, &PL_sv_undef);
+                    struct md_accessor_aux *aux = (struct md_accessor_aux*)PerlMemShared_malloc(
+                                        sizeof(struct md_accessor_aux));
+                    aux->md_op = multideref;
+                    aux->tmp_defavp = tmp_defavp;
+
                     CvIsSUBOVERRIDE_on(cv);
-                    CvSUBOVERRIDE(cv) = S_defgv_hek_accessor;
-                    CvSUBOVERRIDEAUX(cv).any_sv = keysv;
+                    CvSUBOVERRIDE(cv) = S_multideref_accessor;
+                    CvSUBOVERRIDEAUX(cv).any_ptr = aux;
                 }
             }
-
-            if ( (!CvIsSUBOVERRIDE(cv)) && !S_multideref_paduse(md_op) )
-            {
-                AV *tmp_defavp = SvREFCNT_inc(newAV());
-                av_store(tmp_defavp, 0, &PL_sv_undef);
-                struct md_accessor_aux *aux = (struct md_accessor_aux*)PerlMemShared_malloc(
-                                    sizeof(struct md_accessor_aux));
-                aux->md_op = md_op;
-                aux->tmp_defavp = tmp_defavp;
-
-                CvIsSUBOVERRIDE_on(cv);
-                CvSUBOVERRIDE(cv) = S_multideref_accessor;
-                CvSUBOVERRIDEAUX(cv).any_ptr = aux;
-            }
-          }
         }
     }
 }
