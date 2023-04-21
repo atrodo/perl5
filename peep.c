@@ -4480,8 +4480,22 @@ Perl_peepcv(pTHX_ CV *cv)
                 && (no = no->op_next) && no->op_type == OP_RV2AV
                 && (no = no->op_next) && no->op_type == OP_CONST && SvIV(cSVOPx_sv(no)) == 1
                 && (no = no->op_next) && ( no->op_type == OP_GT ||  no->op_type == OP_NE )
-                && (no = no->op_next) && no->op_type == OP_AND
+                && (no = no->op_next) && ( no->op_type == OP_AND || no->op_type == OP_COND_EXPR )
                 && (no = no->op_next) && no->op_type == OP_NEXTSTATE
+                && (no = no->op_next) && no->op_type == OP_MULTIDEREF && ( maybe_md = no )
+                && (no = no->op_next) && no->op_type == OP_LEAVESUB
+            )
+            {
+              multideref = maybe_md;
+            }
+
+            // return $_[0]{x} if @_ == 1
+            if ( !multideref
+                && (no = o->op_next)  && no->op_type == OP_GV && cGVOPx_gv(no) == PL_defgv
+                && (no = no->op_next) && no->op_type == OP_RV2AV
+                && (no = no->op_next) && no->op_type == OP_CONST && SvIV(cSVOPx_sv(no)) == 1
+                && (no = no->op_next) && ( no->op_type == OP_GT ||  no->op_type == OP_NE )
+                && (no = no->op_next) && ( no->op_type == OP_AND || no->op_type == OP_COND_EXPR )
                 && (no = no->op_next) && no->op_type == OP_MULTIDEREF && ( maybe_md = no )
                 && (no = no->op_next) && no->op_type == OP_LEAVESUB
             )
