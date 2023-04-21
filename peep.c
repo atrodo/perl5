@@ -4347,7 +4347,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     dSP;
     SV **mark = PL_stack_base;
 
-    if ( SP - MARK <= 1 )
+    if ( SP - MARK != 2 )
     {
         return false;
     }
@@ -4400,7 +4400,14 @@ static bool
 S_multideref_accessor(pTHX_ CV *cv)
 {
     dSP;
-    dMARK;
+    SV **mark = PL_stack_base;
+
+    if ( SP - MARK != 2 )
+    {
+        return false;
+    }
+
+    mark = PL_stack_base + POPMARK;
 
     struct md_accessor_aux *aux = (struct md_accessor_aux *)CvSUBOVERRIDEAUX(cv).any_ptr;
 
