@@ -4223,7 +4223,7 @@ Perl_peep(pTHX_ OP *o)
 }
 
 static bool
-S_multideref_paduse(OP *o)
+S_multideref_uses_pad(OP *o)
 {
     if ( o->op_type != OP_MULTIDEREF )
         return false;
@@ -4236,7 +4236,7 @@ S_multideref_paduse(OP *o)
     UNOP_AUX_item *max_items = items + size;
 
     UV actions = items->uv;
-    bool paduse = false;
+    bool uses_pad = false;
     while (1)
     {
         if ( items == max_items )
@@ -4252,7 +4252,7 @@ S_multideref_paduse(OP *o)
             case MDEREF_AV_padav_aelem:                 /* $lex[...] */
                 /* Pulls pad var, implies AV_aelem, which pulls
                    another item */
-                paduse = true;
+                uses_pad = true;
                 goto finish;
 
             case MDEREF_AV_gvsv_vivify_rv2av_aelem:     /* $pkg->[...] */
@@ -4274,7 +4274,7 @@ S_multideref_paduse(OP *o)
                         ++items;
                         break;
                     case MDEREF_INDEX_padsv:
-                        paduse = true;
+                        uses_pad = true;
                         goto finish;
                     case MDEREF_INDEX_gvsv:
                         ++items;
@@ -4285,14 +4285,14 @@ S_multideref_paduse(OP *o)
                 /* Pulls the first item from the stack, implies
                    AV_rv2av_aelem, which implies AV_aelem, which
                    pulls another item */
-                paduse = true;
+                uses_pad = true;
                 goto finish;
 
             case MDEREF_HV_padsv_vivify_rv2hv_helem:    /* $lex->{...} */
             case MDEREF_HV_padhv_helem:                 /* $lex{...} */
                 /* Pulls pad var, implies HV_aelem, which pulls
                    another item */
-                paduse = true;
+                uses_pad = true;
                 goto finish;
             case MDEREF_HV_gvsv_vivify_rv2hv_helem:     /* $pkg->{...} */
             case MDEREF_HV_gvhv_helem:                  /* $pkg{...} */
@@ -4313,7 +4313,7 @@ S_multideref_paduse(OP *o)
                         ++items;
                         break;
                     case MDEREF_INDEX_padsv:
-                        paduse = true;
+                        uses_pad = true;
                         goto finish;
                     case MDEREF_INDEX_gvsv:
                         ++items;
@@ -4325,14 +4325,14 @@ S_multideref_paduse(OP *o)
                 /* Pulls the first item from the stack, implies
                    HV_rv2hv_aelem, which implies HV_helem, which
                    pulls another item */
-                paduse = true;
+                uses_pad = true;
                 goto finish;
         }
         actions >>= MDEREF_SHIFT;
     }
 
     finish:
-        return paduse;
+        return uses_pad;
 }
 
 struct md_accessor_aux
@@ -4526,7 +4526,7 @@ Perl_peepcv(pTHX_ CV *cv)
                     }
                 }
 
-                if ( (!CvIsSUBOVERRIDE(cv)) && !S_multideref_paduse(multideref) )
+                if ( (!CvIsSUBOVERRIDE(cv)) && !S_multideref_uses_pad(multideref) )
                 {
                     AV *tmp_defavp = SvREFCNT_inc(newAV());
                     av_store(tmp_defavp, 0, &PL_sv_undef);
