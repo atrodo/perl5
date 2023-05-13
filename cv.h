@@ -93,6 +93,7 @@ See L<perlguts/Autoloading with XSUBs>.
 #if defined(PERL_CORE) || defined(PERL_EXT)
 #define CvSUBOVERRIDE(sv)	  ((XPVCV*)MUTABLE_PTR(SvANY(sv)))->xcv_suboverride
 #define CvSUBOVERRIDEAUX(sv)	  ((XPVCV*)MUTABLE_PTR(SvANY(sv)))->xcv_suboverride_aux
+#define CvSUBOVERRIDEAUXSIZE(sv)  ((XPVCV*)MUTABLE_PTR(SvANY(sv)))->xcv_suboverride_aux_size
 #endif
 
 /* These two are sometimes called on non-CVs */

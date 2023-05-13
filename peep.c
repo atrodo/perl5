@@ -4356,7 +4356,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     // as we don't need to place this sv onto PL_defgv just to find it again
     mark = PL_stack_base + POPMARK;
     SV *sv = *(MARK+1);
-    SV *keysv = CvSUBOVERRIDEAUX(cv).any_sv;
+    SV *keysv = CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_sv;
 
     SP = MARK;
     PUTBACK;
@@ -4409,7 +4409,7 @@ S_multideref_accessor(pTHX_ CV *cv)
 
     mark = PL_stack_base + POPMARK;
 
-    struct md_accessor_aux *aux = (struct md_accessor_aux *)CvSUBOVERRIDEAUX(cv).any_ptr;
+    struct md_accessor_aux *aux = (struct md_accessor_aux *)CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_ptr;
 
     OP *cv_start = (OP *)CvSTART(cv);
     OP *o = aux->md_op;
@@ -4522,7 +4522,8 @@ Perl_peepcv(pTHX_ CV *cv)
                         SV *keysv = UNOP_AUX_item_sv(++items);
                         CvIsSUBOVERRIDE_on(cv);
                         CvSUBOVERRIDE(cv) = S_defgv_hek_accessor;
-                        CvSUBOVERRIDEAUX(cv).any_sv = keysv;
+                        CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_sv = SvREFCNT_inc_simple_NN(keysv);
+                        CvSUBOVERRIDEAUXSIZE(cv) = 0;
                     }
                 }
 
@@ -4537,7 +4538,8 @@ Perl_peepcv(pTHX_ CV *cv)
 
                     CvIsSUBOVERRIDE_on(cv);
                     CvSUBOVERRIDE(cv) = S_multideref_accessor;
-                    CvSUBOVERRIDEAUX(cv).any_ptr = aux;
+                    CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_ptr = aux;
+                    CvSUBOVERRIDEAUXSIZE(cv) = sizeof(struct md_accessor_aux);
                 }
             }
         }
