@@ -4286,16 +4286,9 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
 void
 Perl_peepcv(pTHX_ CV *cv)
 {
+#ifdef PERL_CV_OVERRIDE
     OP *o;
     o = (OP *)CvSTART(cv);
-
-    UV md_accessor = 0;
-    {
-        const char *s;
-        s = PerlEnv_getenv("PERL_MULTIDEREF_ACC");
-        if (s)
-            grok_atoUV(s, &md_accessor, NULL);
-    }
 
     if ( md_accessor > 0 || getenv("AAA")
          && (!CvIsSUBOVERRIDE(cv)) )
@@ -4370,6 +4363,7 @@ Perl_peepcv(pTHX_ CV *cv)
             }
         }
     }
+#endif
 }
 
 /*
