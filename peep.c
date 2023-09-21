@@ -4223,125 +4223,6 @@ Perl_peep(pTHX_ OP *o)
 }
 
 static bool
-S_multideref_uses_pad(OP *o)
-{
-    if ( o->op_type != OP_MULTIDEREF )
-        return false;
-
-    // Make sure the multideref only contains things we can handle
-    UNOP_AUX_item *items = cUNOP_AUXx(o)->op_aux;
-
-    // Pull the number of items from the hidden first item
-    Size_t size = (items-1)->ssize;
-    UNOP_AUX_item *max_items = items + size;
-
-    UV actions = items->uv;
-    bool uses_pad = false;
-    while (1)
-    {
-        if ( items == max_items )
-          break;
-
-        switch (actions & MDEREF_ACTION_MASK)
-        {
-            case MDEREF_reload:
-                actions = (++items)->uv;
-                continue;
-
-            case MDEREF_AV_padsv_vivify_rv2av_aelem:     /* $lex->[...] */
-            case MDEREF_AV_padav_aelem:                 /* $lex[...] */
-                /* Pulls pad var, implies AV_aelem, which pulls
-                   another item */
-                uses_pad = true;
-                goto finish;
-
-            case MDEREF_AV_gvsv_vivify_rv2av_aelem:     /* $pkg->[...] */
-            case MDEREF_AV_gvav_aelem:                  /* $pkg[...] */
-                /* Pulls global var, implies AV_aelem, which pulls
-                   another item */
-                ++items;
-                /* FALLTHROUGH */
-
-            case MDEREF_AV_vivify_rv2av_aelem:           /* vivify, ->[...] */
-                /* this is the OPpDEREF action normally found at the end of
-                 * ops like aelem, helem, rv2sv. Does not pull an item, but
-                 * does imply AV_rv2av_aelem and AV_aelem, the latter pulls
-                 * an item */
-                switch (actions & MDEREF_INDEX_MASK) {
-                    case MDEREF_INDEX_none:
-                        goto finish;
-                    case MDEREF_INDEX_const:
-                        ++items;
-                        break;
-                    case MDEREF_INDEX_padsv:
-                        uses_pad = true;
-                        goto finish;
-                    case MDEREF_INDEX_gvsv:
-                        ++items;
-                        break;
-                }
-                break;
-            case MDEREF_AV_pop_rv2av_aelem:             /* expr->[...] */
-                /* Pulls the first item from the stack, implies
-                   AV_rv2av_aelem, which implies AV_aelem, which
-                   pulls another item */
-                uses_pad = true;
-                goto finish;
-
-            case MDEREF_HV_padsv_vivify_rv2hv_helem:    /* $lex->{...} */
-            case MDEREF_HV_padhv_helem:                 /* $lex{...} */
-                /* Pulls pad var, implies HV_aelem, which pulls
-                   another item */
-                uses_pad = true;
-                goto finish;
-            case MDEREF_HV_gvsv_vivify_rv2hv_helem:     /* $pkg->{...} */
-            case MDEREF_HV_gvhv_helem:                  /* $pkg{...} */
-                /* Pulls global var, implies HV_aelem, which pulls
-                   another item */
-                ++items;
-                /* FALLTHROUGH */
-
-            case MDEREF_HV_vivify_rv2hv_helem:           /* vivify, ->{...} */
-                /* this is the OPpDEREF action normally found at the end of
-                 * ops like aelem, helem, rv2sv. Does not pull an item, but
-                 * does imply AV_rv2av_aelem and AV_aelem, the latter pulls
-                 * an item */
-                switch (actions & MDEREF_INDEX_MASK) {
-                    case MDEREF_INDEX_none:
-                        goto finish;
-                    case MDEREF_INDEX_const:
-                        ++items;
-                        break;
-                    case MDEREF_INDEX_padsv:
-                        uses_pad = true;
-                        goto finish;
-                    case MDEREF_INDEX_gvsv:
-                        ++items;
-                        break;
-                }
-                break;
-
-            case MDEREF_HV_pop_rv2hv_helem:             /* expr->{...} */
-                /* Pulls the first item from the stack, implies
-                   HV_rv2hv_aelem, which implies HV_helem, which
-                   pulls another item */
-                uses_pad = true;
-                goto finish;
-        }
-        actions >>= MDEREF_SHIFT;
-    }
-
-    finish:
-        return uses_pad;
-}
-
-struct md_accessor_aux
-{
-    OP *md_op;
-    AV *tmp_defavp;
-};
-
-static bool
 S_defgv_hek_accessor(pTHX_ CV *cv)
 {
     dSP;
@@ -4356,7 +4237,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     // as we don't need to place this sv onto PL_defgv just to find it again
     mark = PL_stack_base + POPMARK;
     SV *sv = *(MARK+1);
-    SV *keysv = CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_sv;
+    SV *keysv = CvSUBOVERRIDEAUX(cv);
 
     SP = MARK;
     PUTBACK;
@@ -4393,45 +4274,6 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
 
     XPUSHs(sv);
     PUTBACK;
-    return true;
-}
-
-static bool
-S_multideref_accessor(pTHX_ CV *cv)
-{
-    dSP;
-    SV **mark = PL_stack_base;
-
-    if ( SP - MARK != 2 )
-    {
-        return false;
-    }
-
-    mark = PL_stack_base + POPMARK;
-
-    struct md_accessor_aux *aux = (struct md_accessor_aux *)CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_ptr;
-
-    OP *cv_start = (OP *)CvSTART(cv);
-    OP *o = aux->md_op;
-    AV *tmp_defavp = aux->tmp_defavp;
-
-    av_store_simple(tmp_defavp, 0, SvREFCNT_inc_simple_NN(*(MARK+1)));
-
-    AV **defavp;
-    defavp = &GvAV(PL_defgv);
-    AV *prev_avp = *defavp;
-    *defavp = tmp_defavp;
-
-    SP = MARK;
-    PUTBACK;
-    COP *prev_cop = PL_curcop;
-    OP *prev_op = PL_op;
-    PL_curcop = cv_start;
-    PL_op = o;
-    Perl_pp_multideref(aTHX);
-    *defavp = prev_avp;
-    PL_op = prev_op;
-    PL_curcop = prev_cop;
     return true;
 }
 
@@ -4522,24 +4364,8 @@ Perl_peepcv(pTHX_ CV *cv)
                         SV *keysv = UNOP_AUX_item_sv(++items);
                         CvIsSUBOVERRIDE_on(cv);
                         CvSUBOVERRIDE(cv) = S_defgv_hek_accessor;
-                        CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_sv = SvREFCNT_inc_simple_NN(keysv);
-                        CvSUBOVERRIDEAUXSIZE(cv) = 0;
+                        CvSUBOVERRIDEAUX(cv) = SvREFCNT_inc_simple_NN(keysv);
                     }
-                }
-
-                if ( (!CvIsSUBOVERRIDE(cv)) && !S_multideref_uses_pad(multideref) )
-                {
-                    AV *tmp_defavp = SvREFCNT_inc(newAV());
-                    av_store(tmp_defavp, 0, &PL_sv_undef);
-                    struct md_accessor_aux *aux = (struct md_accessor_aux*)PerlMemShared_malloc(
-                                        sizeof(struct md_accessor_aux));
-                    aux->md_op = multideref;
-                    aux->tmp_defavp = tmp_defavp;
-
-                    CvIsSUBOVERRIDE_on(cv);
-                    CvSUBOVERRIDE(cv) = S_multideref_accessor;
-                    CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_ptr = aux;
-                    CvSUBOVERRIDEAUXSIZE(cv) = sizeof(struct md_accessor_aux);
                 }
             }
         }

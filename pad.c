@@ -465,16 +465,11 @@ Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
     /* else is (!CvISXSUB(&cvbody) && !CvPADLIST(&cvbody)) {do nothing;} */
 
 
+    /* remove any CvSUBOVERRIDE */
     if ( CvIsSUBOVERRIDE(cv) ) {
         CvSUBOVERRIDE(cv) = NULL;
-        if ( CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_ptr ) {
-            if ( CvSUBOVERRIDEAUXSIZE(cv) ) {
-                Safefree(CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_ptr);
-                CvSUBOVERRIDEAUXSIZE(cv) = 0;
-            }
-            else {
-                SvREFCNT_dec(CvSUBOVERRIDEAUX(cv).xcv_suboverride_aux_sv);
-            }
+        if ( CvSUBOVERRIDEAUX(cv) ) {
+            SvREFCNT_dec(CvSUBOVERRIDEAUX(cv));
         }
         CvIsSUBOVERRIDE_off(cv);
     }
