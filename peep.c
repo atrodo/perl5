@@ -4290,8 +4290,7 @@ Perl_peepcv(pTHX_ CV *cv)
     OP *o;
     o = (OP *)CvSTART(cv);
 
-    if ( md_accessor > 0 || getenv("AAA")
-         && (!CvIsSUBOVERRIDE(cv)) )
+    if ( !CvIsSUBOVERRIDE(cv) )
     {
         if ( o->op_type == OP_NEXTSTATE )
         {
