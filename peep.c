@@ -4226,7 +4226,7 @@ static bool
 S_defgv_hek_accessor(pTHX_ CV *cv)
 {
     dSP;
-    SV **mark = PL_stack_base;
+    SV **mark = PL_stack_base + TOPMARK;
 
     if ( SP - MARK != 2 )
     {
