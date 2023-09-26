@@ -4254,8 +4254,9 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
 	    DIE(aTHX_ "Not a HASH reference");
     }
     else if (SvTYPE(sv) != SVt_PVHV) {
+        // Let the non-optimized version handle softref2xv
 	if (!isGV_with_GP(sv))
-	    sv = (SV*)S_softref2xv_lite(aTHX_ sv, "a HASH", SVt_PVHV);
+	    return false;
 	sv = MUTABLE_SV(GvHVn((GV*)sv));
     }
 
