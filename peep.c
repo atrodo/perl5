@@ -4222,6 +4222,7 @@ Perl_peep(pTHX_ OP *o)
     CALL_RPEEP(o);
 }
 
+#ifdef PERL_CV_OVERRIDE
 static bool
 S_defgv_hek_accessor(pTHX_ CV *cv)
 {
@@ -4277,6 +4278,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     PUTBACK;
     return true;
 }
+#endif
 
 #define GV_AV_HV_CONST_MDEREF (\
     (MDEREF_FLAG_last | MDEREF_INDEX_const | MDEREF_HV_vivify_rv2hv_helem)  \
