@@ -4255,7 +4255,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     }
     else if (SvTYPE(sv) != SVt_PVHV) {
 	if (!isGV_with_GP(sv))
-            DIE(aTHX_ "Unable to handle softref2xv");
+	    sv = (SV*)S_softref2xv_lite(aTHX_ sv, "a HASH", SVt_PVHV);
 	sv = MUTABLE_SV(GvHVn((GV*)sv));
     }
 
