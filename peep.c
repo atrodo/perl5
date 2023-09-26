@@ -4350,7 +4350,7 @@ Perl_peepcv(pTHX_ CV *cv)
                     SV *sv = UNOP_AUX_item_sv(++items);
                     IV elem = (++items)->iv;
 
-                    if ( sv == PL_defgv && elem == 0
+                    if ( sv == GvSV(PL_defgv) && elem == 0
                         && !( multideref->op_private & (OPpMULTIDEREF_EXISTS|OPpMULTIDEREF_DELETE))
                         && !( multideref->op_flags & OPf_MOD)
                         && !( multideref->op_private & OPpLVAL_DEFER)
