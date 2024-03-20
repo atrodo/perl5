@@ -4184,43 +4184,46 @@ Perl_rpeep(pTHX_ OP *o)
 
 #ifdef PERL_CV_OVERRIDE
 
+/* S_defgv_hek_accessor(): Provides fast hash value access for cv_override
+ * function calls
+ *
+ * This will check that the number of arguments to a function call is exactly
+ * 1, and confirms that the single item is a hashref. If both conditions are
+ * true, it returns the hash value of a static key stored in CvSUBOVERRIDEAUX.
+ * If there are any complications, like having magic, this will defer to the
+ * full function instead.
+ */
+
 static bool
 S_defgv_hek_accessor(pTHX_ CV *cv)
 {
-    dSP;
-    SV **mark = PL_stack_base + TOPMARK;
+    SV **mark = PL_stack_base + PL_markstack_ptr[0];
 
-    if ( SP - MARK != 2 )
+    if ( PL_stack_sp - mark != 2 )
     {
         return false;
     }
 
     /* This completely replaces MDEREF_INDEX_const | MDEREF_AV_gvav_aelem */
     /* as we don't need to place this sv onto PL_defgv just to find it again */
-    mark = PL_stack_base + POPMARK;
-    SV *sv = *(MARK+1);
+    SV *sv = *(mark+1);
     SV *keysv = CvSUBOVERRIDEAUX(cv);
-
-    SP = MARK;
-    PUTBACK;
 
     /* MDEREF_HV_vivify_rv2hv_helem */
     sv = vivify_ref(sv, OPpDEREF_HV);
     SvGETMAGIC(sv);
-    if (LIKELY(SvROK(sv))) {
-        if (UNLIKELY(SvAMAGIC(sv))) {
-            sv = amagic_deref_call(sv, to_hv_amg);
-        }
-        sv = SvRV(sv);
-        if (UNLIKELY(SvTYPE(sv) != SVt_PVHV))
-            DIE(aTHX_ "Not a HASH reference");
+
+    /* Let the unoptimized path handle any exceptional cases */
+    if (UNLIKELY(!SvROK(sv))) {
+        return false;
     }
-    else if (SvTYPE(sv) != SVt_PVHV) {
-        /* Let the real multi-deref handle softref2xv */
-        if (!isGV_with_GP(sv))
-            return false;
-        sv = MUTABLE_SV(GvHVn((GV*)sv));
+
+    if (UNLIKELY(SvAMAGIC(sv))) {
+        sv = amagic_deref_call(sv, to_hv_amg);
     }
+    sv = SvRV(sv);
+    if (UNLIKELY(SvTYPE(sv) != SVt_PVHV))
+        return false;
 
     /* MDEREF_INDEX_const */
     SV **svp;
@@ -4235,11 +4238,8 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
     if (SvRMAGICAL(hv) && SvGMAGICAL(sv))
         mg_get(sv);
 
-#ifdef PERL_RC_STACK
-    SvREFCNT_inc(sv);
-#endif
-    XPUSHs(sv);
-    PUTBACK;
+    (void)POPMARK;
+    rpp_replace_2_1(sv);
     return true;
 }
 
@@ -4248,6 +4248,20 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
         << MDEREF_SHIFT                                                     \
     | (MDEREF_INDEX_const | MDEREF_AV_gvav_aelem)                           \
     )
+
+/* S_cv_override_create(): Checks the body of a CV for cv_override
+ * optimizations.
+ *
+ * This is an optimizer step that looks at the function as a whole and
+ * determines if a cv_override optimization can be made. If so, it enables
+ * CvIsSUBOVERRIDE, sets the function to call to S_defgv_hek_accessor, and
+ * saves the constant key. Note that this will not apply without multiconcat
+ * enabled.
+ *
+ * Examples that can be optimized:
+ *  sub foo { return $_[0]->{foo} }
+ *  sub foo { return $_[0]->{foo} if @_ == 1 }
+ */
 
 static void
 S_cv_override_create(pTHX_ OP *o)
@@ -4261,19 +4275,21 @@ S_cv_override_create(pTHX_ OP *o)
     if ( o != (OP *)CvSTART(cv) )
         return;
 
+    /* Do not apply if there is already a cv_override */
     if ( CvIsSUBOVERRIDE(cv) )
         return;
 
     topop = o->op_next;
     no = o->op_next;
 
+    /* Skip any initial OP_NULL */
     while ( topop && topop->op_type == OP_NULL )
         topop = topop->op_next;
 
     if ( !topop || !topop->op_next )
         return;
 
-    /* Skip any intial OP_NEXTSTATE */
+    /* Skip any initial OP_NEXTSTATE */
     if ( topop->op_type == OP_NEXTSTATE )
         topop = topop->op_next;
 
