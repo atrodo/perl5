@@ -4240,6 +4240,7 @@ S_defgv_hek_accessor(pTHX_ CV *cv)
 
     (void)POPMARK;
     rpp_replace_2_1(sv);
+    //warn("%d: %zX -> %zX\n", __LINE__, (ssize_t)PL_markstack_ptr, PL_stack_sp);
     return true;
 }
 
@@ -4355,7 +4356,8 @@ S_cv_override_create(pTHX_ OP *o)
                 SV *keysv = UNOP_AUX_item_sv(++items);
                 CvIsSUBOVERRIDE_on(cv);
                 CvSUBOVERRIDE(cv) = S_defgv_hek_accessor;
-                CvSUBOVERRIDEAUX(cv) = keysv;
+                CvSUBOVERRIDEAUX(cv) = SvREFCNT_inc_NN(keysv);
+                //warn("%d - %d\n", __LINE__, SvREFCNT(cv));
             }
         }
     }

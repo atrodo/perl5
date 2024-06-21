@@ -468,6 +468,15 @@ Perl_cv_undef_flags(pTHX_ CV *cv, U32 flags)
     }
     /* else is (!CvISXSUB(&cvbody) && !CvPADLIST(&cvbody)) {do nothing;} */
 
+#ifdef PERL_CV_OVERRIDE
+    //warn("%d\n", __LINE__);
+    if ( CvIsSUBOVERRIDE(cv) && CvSUBOVERRIDE(cv) != NULL ) {
+        SV *keysv = CvSUBOVERRIDEAUX(cv);
+        warn("%d = %s\n", SvREFCNT(keysv), SvPV_nolen(keysv));
+        SvREFCNT_dec(keysv);
+    warn("%d\n", __LINE__);
+    }
+#endif
 
     /* remove CvOUTSIDE unless this is an undef rather than a free */
     if (!SvREFCNT(cv)) {
